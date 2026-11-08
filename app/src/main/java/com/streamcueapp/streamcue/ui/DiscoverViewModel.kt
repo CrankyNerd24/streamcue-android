@@ -86,13 +86,13 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
                 _items.value = when (_kind.value) {
                     DiscoverKind.TV -> when (_feed.value) {
                         DiscoverFeed.FOR_YOU -> recommendedShows()
-                        DiscoverFeed.TRENDING -> TmdbClient.api.trendingShows().results.toDiscoverItems()
-                        DiscoverFeed.POPULAR -> TmdbClient.api.popularShows().results.toDiscoverItems()
+                        DiscoverFeed.TRENDING -> TmdbClient.api.trendingShows().results.toShowDiscoverItems()
+                        DiscoverFeed.POPULAR -> TmdbClient.api.popularShows().results.toShowDiscoverItems()
                     }
                     DiscoverKind.MOVIES -> when (_feed.value) {
                         DiscoverFeed.FOR_YOU -> recommendedMovies()
-                        DiscoverFeed.TRENDING -> TmdbClient.api.trendingMovies().results.toDiscoverItems()
-                        DiscoverFeed.POPULAR -> TmdbClient.api.popularMovies().results.toDiscoverItems()
+                        DiscoverFeed.TRENDING -> TmdbClient.api.trendingMovies().results.toMovieDiscoverItems()
+                        DiscoverFeed.POPULAR -> TmdbClient.api.popularMovies().results.toMovieDiscoverItems()
                     }
                 }
             } catch (e: CancellationException) {
@@ -106,11 +106,15 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    private fun List<TmdbShowSearchResult>.toDiscoverItems() = map {
+    // Named distinctly rather than overloaded — List<TmdbShowSearchResult>
+    // and List<TmdbMovieSearchResult> erase to the same JVM signature, so
+    // two extension functions both named toDiscoverItems() clash at the
+    // bytecode level even though Kotlin itself can tell them apart.
+    private fun List<TmdbShowSearchResult>.toShowDiscoverItems() = map {
         DiscoverItem(it.id, it.name, it.posterPath, it.overview, it.genreIds, DiscoverKind.TV)
     }
 
-    private fun List<TmdbMovieSearchResult>.toDiscoverItems() = map {
+    private fun List<TmdbMovieSearchResult>.toMovieDiscoverItems() = map {
         DiscoverItem(it.id, it.title, it.posterPath, it.overview, it.genreIds, DiscoverKind.MOVIES)
     }
 
