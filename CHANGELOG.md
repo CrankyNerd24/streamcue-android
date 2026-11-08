@@ -54,3 +54,8 @@ All notable changes to this project are documented here. Format follows
 - Add a shared TMDB-only refresh path (data/Refresh.kt) used by the detail
   screens when a title's data is stale, and by a new nightly WorkManager
   job that keeps every tracked show and movie current in the background
+
+- Fix Discover tiles not opening anything on tap — only the small add icon
+  did anything. Tapping the poster now opens a title preview screen
+  (fetched straight from TMDB, since the title usually isn't tracked yet)
+  with its own Add button, the Android analog of iOS's TitlePreviewSheet

@@ -1,5 +1,6 @@
 package com.streamcueapp.streamcue.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,11 +43,15 @@ import com.streamcueapp.streamcue.network.TmdbImage
  * Stands in for iOS's DiscoverView, trimmed to Trending/Popular — "For you"
  * is assembled from the user's own tracked-title genres on iOS and isn't
  * ported yet (see CLAUDE.md). Tapping a poster never adds anything, same
- * rule as iOS; the add button is a separate, explicit affordance.
+ * rule as iOS — it opens TitlePreviewScreen instead; the tile's own add
+ * icon is a separate, explicit affordance that still adds directly.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DiscoverScreen(viewModel: DiscoverViewModel = viewModel()) {
+fun DiscoverScreen(
+    onPreview: (DiscoverItem) -> Unit,
+    viewModel: DiscoverViewModel = viewModel()
+) {
     val kind by viewModel.kind.collectAsState()
     val feed by viewModel.feed.collectAsState()
     val items by viewModel.items.collectAsState()
@@ -94,7 +99,8 @@ fun DiscoverScreen(viewModel: DiscoverViewModel = viewModel()) {
                         DiscoverTile(
                             item = item,
                             alreadyTracked = item.id in trackedIds,
-                            onAdd = { viewModel.add(item) }
+                            onAdd = { viewModel.add(item) },
+                            onClick = { onPreview(item) }
                         )
                     }
                 }
@@ -123,10 +129,11 @@ private fun ToggleButton(label: String, selected: Boolean, onClick: () -> Unit) 
 private fun DiscoverTile(
     item: DiscoverItem,
     alreadyTracked: Boolean,
-    onAdd: () -> Unit
+    onAdd: () -> Unit,
+    onClick: () -> Unit
 ) {
     Column {
-        Box {
+        Box(modifier = Modifier.clickable(onClick = onClick)) {
             AsyncImage(
                 model = TmdbImage.poster(item.posterPath, width = 185),
                 contentDescription = null,

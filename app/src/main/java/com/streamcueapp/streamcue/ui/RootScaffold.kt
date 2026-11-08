@@ -91,7 +91,12 @@ fun RootScaffold() {
             composable("services") {
                 ServicesScreen(onChooseServices = { navController.navigate("servicePicker") })
             }
-            composable("discover") { DiscoverScreen() }
+            composable("discover") {
+                DiscoverScreen(onPreview = { item ->
+                    val kindSegment = if (item.kind == DiscoverKind.MOVIES) "movie" else "tv"
+                    navController.navigate("preview/$kindSegment/${item.id}")
+                })
+            }
             composable("addShow") {
                 AddShowScreen(onDone = { navController.popBackStack() })
             }
@@ -114,6 +119,22 @@ fun RootScaffold() {
             ) { entry ->
                 val tmdbId = entry.arguments?.getInt("tmdbId") ?: return@composable
                 MovieDetailScreen(tmdbId = tmdbId, onBack = { navController.popBackStack() })
+            }
+            composable(
+                route = "preview/{kind}/{tmdbId}",
+                arguments = listOf(
+                    navArgument("kind") { type = NavType.StringType },
+                    navArgument("tmdbId") { type = NavType.IntType }
+                )
+            ) { entry ->
+                val kindArg = entry.arguments?.getString("kind") ?: return@composable
+                val tmdbId = entry.arguments?.getInt("tmdbId") ?: return@composable
+                val kind = if (kindArg == "movie") DiscoverKind.MOVIES else DiscoverKind.TV
+                TitlePreviewScreen(
+                    kind = kind,
+                    tmdbId = tmdbId,
+                    onBack = { navController.popBackStack() }
+                )
             }
         }
     }

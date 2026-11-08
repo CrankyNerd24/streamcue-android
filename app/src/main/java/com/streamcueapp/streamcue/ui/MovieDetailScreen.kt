@@ -14,8 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -167,18 +165,4 @@ private fun MovieDetailBody(
             )
         }
     }
-}
-
-@Composable
-private fun ProviderChip(name: String, isFree: Boolean) {
-    AssistChip(
-        onClick = {},
-        label = { Text(name) },
-        modifier = Modifier.padding(end = 8.dp),
-        colors = if (isFree) {
-            AssistChipDefaults.assistChipColors(labelColor = MaterialTheme.colorScheme.secondary)
-        } else {
-            AssistChipDefaults.assistChipColors()
-        }
-    )
 }

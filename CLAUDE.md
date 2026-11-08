@@ -120,8 +120,14 @@ Where this file and that one differ, this one wins for Android.
   Movies each) from TMDB's single-endpoint feeds — iOS's "For you" feed,
   assembled from the user's own tracked-title genres rather than one
   endpoint, isn't ported. Tapping a poster never adds anything, same rule
-  as iOS — the grid's add button is a separate, explicit affordance, same
-  pattern as the Add Show/Movie rows.
+  as iOS — it opens `TitlePreviewScreen`/`TitlePreviewViewModel`, the
+  Android analog of iOS's `TitlePreviewSheet`: fetches straight from TMDB
+  (not Room, since the title usually isn't tracked yet) and shows an Add
+  button or a "Tracked" state. The grid tile's own add icon is a separate,
+  explicit affordance that still adds directly without opening the
+  preview, same pattern as the Add Show/Movie rows. `ProviderChip.kt` is a
+  small shared composable used by both detail screens and the preview
+  screen, rather than three copies of the same chip.
 - `work/NightlyRefreshWorker.kt`: a `CoroutineWorker` that refreshes every
   tracked show and movie once a day via `data/Refresh.kt`, one `runCatching`
   per title so a single network failure doesn't skip the rest of the batch.
