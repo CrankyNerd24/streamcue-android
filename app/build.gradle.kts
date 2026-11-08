@@ -14,6 +14,12 @@ val localProperties = Properties().apply {
     if (file.exists()) file.inputStream().use { load(it) }
 }
 
+// Strips accidental surrounding quotes — easy to paste a token as
+// TMDB_TOKEN="eyJ..." and end up double-quoted once buildConfigField
+// wraps it again below.
+fun localProperty(name: String): String =
+    localProperties.getProperty(name, "").trim().removeSurrounding("\"")
+
 android {
     namespace = "com.streamcueapp.streamcue"
     compileSdk = 37
@@ -26,16 +32,8 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        buildConfigField(
-            "String",
-            "TMDB_TOKEN",
-            "\"${localProperties.getProperty("TMDB_TOKEN", "")}\""
-        )
-        buildConfigField(
-            "String",
-            "OMDB_KEY",
-            "\"${localProperties.getProperty("OMDB_KEY", "")}\""
-        )
+        buildConfigField("String", "TMDB_TOKEN", "\"${localProperty("TMDB_TOKEN")}\"")
+        buildConfigField("String", "OMDB_KEY", "\"${localProperty("OMDB_KEY")}\"")
     }
 
     buildTypes {
