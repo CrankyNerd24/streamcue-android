@@ -38,6 +38,7 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
     private val app = application as StreamCueApp
     private val showDao = app.database.trackedShowDao()
     private val movieDao = app.database.trackedMovieDao()
+    private val ignoredDao = app.database.ignoredTitleDao()
 
     private val _kind = MutableStateFlow(DiscoverKind.TV)
     val kind: StateFlow<DiscoverKind> = _kind
@@ -60,6 +61,14 @@ class DiscoverViewModel(application: Application) : AndroidViewModel(application
 
     val trackedMovieIds: StateFlow<Set<Int>> = movieDao.observeAll()
         .map { movies -> movies.map { it.tmdbId }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    val ignoredShowIds: StateFlow<Set<Int>> = ignoredDao.observeAll()
+        .map { ignored -> ignored.filter { it.kind == DiscoverKind.TV.name }.map { it.tmdbId }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    val ignoredMovieIds: StateFlow<Set<Int>> = ignoredDao.observeAll()
+        .map { ignored -> ignored.filter { it.kind == DiscoverKind.MOVIES.name }.map { it.tmdbId }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     init {

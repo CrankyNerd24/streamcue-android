@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.streamcueapp.streamcue.StreamCueApp
+import com.streamcueapp.streamcue.model.IgnoredTitle
 import com.streamcueapp.streamcue.model.TrackedMovie
 import com.streamcueapp.streamcue.model.TrackedShow
 import com.streamcueapp.streamcue.network.TmdbClient
@@ -28,12 +29,15 @@ data class TitlePreview(
 /**
  * Unsaved-title preview, the Android analog of iOS's TitlePreviewSheet —
  * fetches straight from TMDB rather than Room, since the title shown here
- * usually isn't tracked yet. The only thing that inserts is Add.
+ * usually isn't tracked yet. Three things change state: Add, Watched (add
+ * then mark watched — one insert, not two, same as iOS's markWatched()),
+ * and Not interested (records an IgnoredTitle, nothing tracked).
  */
 class TitlePreviewViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as StreamCueApp
     private val showDao = app.database.trackedShowDao()
     private val movieDao = app.database.trackedMovieDao()
+    private val ignoredDao = app.database.ignoredTitleDao()
 
     private val _preview = MutableStateFlow<TitlePreview?>(null)
     val preview: StateFlow<TitlePreview?> = _preview
@@ -127,7 +131,10 @@ class TitlePreviewViewModel(application: Application) : AndroidViewModel(applica
     private fun headline(voteAverage: Double?): String? =
         if ((voteAverage ?: 0.0) > 0.0) "TMDB " + "%.1f".format(voteAverage) else null
 
-    fun add() {
+    /** @param watched For a show this is just an initial value — the next
+     * refresh can't correct it the way iOS's episode sync would, since
+     * that subsystem isn't ported (see CLAUDE.md). */
+    fun add(watched: Boolean = false) {
         viewModelScope.launch {
             when (kind) {
                 DiscoverKind.TV -> showDao.insert(
@@ -137,6 +144,7 @@ class TitlePreviewViewModel(application: Application) : AndroidViewModel(applica
                         posterPath = rawPosterPath,
                         overview = rawOverview,
                         genreIds = rawGenreIds,
+                        watched = watched,
                     )
                 )
                 DiscoverKind.MOVIES -> movieDao.insert(
@@ -146,10 +154,24 @@ class TitlePreviewViewModel(application: Application) : AndroidViewModel(applica
                         posterPath = rawPosterPath,
                         overview = rawOverview,
                         genreIds = rawGenreIds,
+                        watched = watched,
                     )
                 )
             }
             _isTracked.value = true
+        }
+    }
+
+    fun ignore() {
+        viewModelScope.launch {
+            ignoredDao.insert(
+                IgnoredTitle(
+                    tmdbId = tmdbId,
+                    kind = kind.name,
+                    title = rawTitle,
+                    posterPath = rawPosterPath,
+                )
+            )
         }
     }
 }

@@ -57,11 +57,14 @@ fun DiscoverScreen(
     val error by viewModel.error.collectAsState()
     val trackedShowIds by viewModel.trackedShowIds.collectAsState()
     val trackedMovieIds by viewModel.trackedMovieIds.collectAsState()
+    val ignoredShowIds by viewModel.ignoredShowIds.collectAsState()
+    val ignoredMovieIds by viewModel.ignoredMovieIds.collectAsState()
     val trackedIds = if (kind == DiscoverKind.TV) trackedShowIds else trackedMovieIds
+    val ignoredIds = if (kind == DiscoverKind.TV) ignoredShowIds else ignoredMovieIds
     val hasNoSeeds = feed == DiscoverFeed.FOR_YOU && trackedIds.isEmpty()
-    // Already-tracked titles never show here, same as iOS's visibleShows/
-    // visibleMovies — there's nothing left to do with one from this screen.
-    val visibleItems = items.filterNot { it.id in trackedIds }
+    // Already-tracked and "Not interested" titles never show here, same as
+    // iOS's visibleShows/visibleMovies filtering out owned + hidden.
+    val visibleItems = items.filterNot { it.id in trackedIds || it.id in ignoredIds }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Discover") }) }

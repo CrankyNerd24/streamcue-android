@@ -53,7 +53,11 @@ Where this file and that one differ, this one wins for Android.
 ## Layout (`app/src/main/java/com/streamcueapp/streamcue`)
 
 - `model/`: `TrackedShow.kt` and `TrackedMovie.kt` — field-for-field Room
-  ports of iOS's `TrackedShow.swift` / `TrackedMovie.swift`. `Date` fields are
+  ports of iOS's `TrackedShow.swift` / `TrackedMovie.swift`. `IgnoredTitle.kt`
+  is a field-for-field port of iOS's `IgnoredTitle.swift` ("Not interested"
+  records) — `kind` is a `DiscoverKind` name string rather than iOS's
+  `MediaKind` raw value, and is part of the primary key since TV and movie
+  id spaces can collide. `Date` fields are
   stored as epoch `Long`s (`nextAirDateEpochDay`, `addedAtEpochMillis`,
   `lastRefreshedEpochMillis`, …). Computed-only properties from iOS are
   Kotlin computed properties here, same as on iOS: `effectiveAirDateEpochDay`
@@ -62,10 +66,11 @@ Where this file and that one differ, this one wins for Android.
   `nextAirDateEpochDay` directly outside `TrackedShow.kt`** — same rule as
   iOS's "never read `nextAirDate` outside `TrackedShow.swift`"; everything
   else reads `effectiveAirDateEpochDay`, which applies `dayOffset`.
-- `data/`: `StreamCueDatabase` (Room singleton, two entities so far),
+- `data/`: `StreamCueDatabase` (Room singleton, three entities so far),
   `TrackedShowDao` / `TrackedMovieDao` (`observeAll`, `observe(tmdbId)`,
   `find`, `insert` with `OnConflictStrategy.IGNORE`, `update`, `delete`),
-  `Converters` (List<String>/List<Int> ↔ JSON via kotlinx.serialization),
+  `IgnoredTitleDao` (`observeAll`, `insert` — see `model/IgnoredTitle.kt`
+  below), `Converters` (List<String>/List<Int> ↔ JSON via kotlinx.serialization),
   `AppPreferences.kt` (the one shared `Context.appDataStore` — Preferences
   DataStore enforces a single instance per file, so `SubscriptionsStore`
   and `SectionCollapseStore` both read this rather than declaring their
@@ -120,7 +125,10 @@ Where this file and that one differ, this one wins for Android.
   poster, schedule/subtitle, rating, a Watched switch, where-to-watch chips
   with a Watch now button that opens the stored JustWatch link, and a
   delete action; refreshes via `data/Refresh.kt` if the row is stale on
-  open). Trimmed vs. iOS's `ShowDetailView`/equivalent: no household
+  open). No Not-interested action on these screens — "Not interested" only
+  makes sense for a title you haven't tracked yet (see `TitlePreviewScreen`
+  below); once it's tracked, delete is the equivalent. Trimmed vs. iOS's
+  `ShowDetailView`/equivalent: no household
   sharing, no Reminders integration, no cast, no deep-linking into an
   installed streaming app's own UI (iOS's `StreamingServices` scheme
   matching) — Watch now always opens the JustWatch link in a browser.
@@ -145,12 +153,25 @@ Where this file and that one differ, this one wins for Android.
   `TitlePreviewScreen`/`TitlePreviewViewModel`, the Android analog of
   iOS's `TitlePreviewSheet`: fetches straight from TMDB (not Room, since
   the title usually isn't tracked yet) and shows an Add button or a
-  "Tracked" state. The grid tile's own add icon is a separate, explicit
-  affordance that still adds directly without opening the preview, same
-  pattern as the Add Show/Movie rows; the Services suggestion strips reuse
-  the same preview screen. `ProviderChip.kt` is a small shared composable
-  used by both detail screens and the preview screen, rather than three
-  copies of the same chip.
+  "Tracked" state, plus Watched and Not interested buttons (hidden once
+  tracked, same as iOS's `if !preview.isTracked`) — Watched is one insert
+  with `watched = true` rather than add-then-update (iOS's `markWatched()`
+  does the same, reusing its own `onAdd`), and Not interested records an
+  `IgnoredTitle` via `IgnoredTitleDao.insert`. All three actions navigate
+  back afterward, matching iOS dismissing the sheet after any of them. The
+  grid tile's own add icon is a separate, explicit affordance that still
+  adds directly without opening the preview, same pattern as the Add
+  Show/Movie rows; the Services suggestion strips reuse the same preview
+  screen. Both already-tracked and "Not interested" titles are filtered
+  out of Discover's grid and the Services suggestion strips —
+  `DiscoverScreen`'s `visibleItems` and `ServicesScreen`'s per-service
+  `shows`/`movies` both subtract `trackedShowIds`/`trackedMovieIds` *and*
+  `ignoredShowIds`/`ignoredMovieIds`, same as iOS's `visibleShows`/
+  `visibleMovies` filtering out `owned` and `hidden`. An item disappears
+  from these screens the moment it's added or marked not interested,
+  reactively, not just on next fetch. `ProviderChip.kt` is a small shared
+  composable used by both detail screens and the preview screen, rather
+  than three copies of the same chip.
   `ShowDetailScreen` also has a day-offset control (stepper + tap-to-edit
   dialog, −7 to 365 days, same range as iOS) and a read-only "Episodes"
   list for the show's current season — fetched live from TMDB's
@@ -173,12 +194,6 @@ Where this file and that one differ, this one wins for Android.
   collapsible too, since the screen reads better shorter). `ScoreBadge.kt`
   and `relativeTime()` (`RelativeTime.kt`) are the other two small shared
   pieces between the two detail screens.
-  Already-tracked titles are filtered out of Discover's grid and the
-  Services suggestion strips — `DiscoverScreen`'s `visibleItems` and
-  `ServicesScreen`'s per-service `shows`/`movies` both subtract the
-  current `trackedShowIds`/`trackedMovieIds`, same as iOS's
-  `visibleShows`/`visibleMovies`. An item disappears from these screens
-  the moment it's added, reactively, not just on next fetch.
 - `work/NightlyRefreshWorker.kt`: a `CoroutineWorker` that refreshes every
   tracked show and movie once a day via `data/Refresh.kt`, one `runCatching`
   per title so a single network failure doesn't skip the rest of the batch.

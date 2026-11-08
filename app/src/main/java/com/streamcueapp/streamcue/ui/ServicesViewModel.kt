@@ -22,6 +22,7 @@ class ServicesViewModel(application: Application) : AndroidViewModel(application
     private val store = app.subscriptionsStore
     private val showDao = app.database.trackedShowDao()
     private val movieDao = app.database.trackedMovieDao()
+    private val ignoredDao = app.database.ignoredTitleDao()
 
     val services: StateFlow<List<StreamingService>> = store.services
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -32,6 +33,14 @@ class ServicesViewModel(application: Application) : AndroidViewModel(application
 
     val trackedMovieIds: StateFlow<Set<Int>> = movieDao.observeAll()
         .map { movies -> movies.map { it.tmdbId }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    val ignoredShowIds: StateFlow<Set<Int>> = ignoredDao.observeAll()
+        .map { ignored -> ignored.filter { it.kind == DiscoverKind.TV.name }.map { it.tmdbId }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    val ignoredMovieIds: StateFlow<Set<Int>> = ignoredDao.observeAll()
+        .map { ignored -> ignored.filter { it.kind == DiscoverKind.MOVIES.name }.map { it.tmdbId }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     private val _showPicks = MutableStateFlow<Map<Int, List<DiscoverItem>>>(emptyMap())

@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -22,6 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,11 +41,13 @@ import coil3.compose.AsyncImage
 import com.streamcueapp.streamcue.network.TmdbImage
 
 /**
- * Unsaved-title preview, the Android analog of iOS's TitlePreviewSheet —
- * shown before anything is added, with Add as the only action that
- * inserts. Reached by tapping a Discover tile's poster; the tile's own
- * explicit Add icon still adds directly without opening this screen, same
- * split AddShowScreen/AddMovieScreen rows already use.
+ * Unsaved-title preview, the Android analog of iOS's TitlePreviewSheet.
+ * Add, Watched, and Not interested each navigate back after acting, same
+ * as iOS dismissing the sheet after any of its three actions — Watched
+ * and Not interested only show for something not already tracked. Reached
+ * by tapping a Discover tile's poster or a Services suggestion; a tile's
+ * own explicit Add icon still adds directly without opening this screen,
+ * same split AddShowScreen/AddMovieScreen rows already use.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,7 +85,9 @@ fun TitlePreviewScreen(
                 preview = current,
                 isTracked = isTracked,
                 modifier = Modifier.padding(padding),
-                onAdd = viewModel::add
+                onAdd = { viewModel.add(); onBack() },
+                onMarkWatched = { viewModel.add(watched = true); onBack() },
+                onNotInterested = { viewModel.ignore(); onBack() }
             )
         }
     }
@@ -104,7 +111,9 @@ private fun TitlePreviewBody(
     preview: TitlePreview,
     isTracked: Boolean,
     modifier: Modifier = Modifier,
-    onAdd: () -> Unit
+    onAdd: () -> Unit,
+    onMarkWatched: () -> Unit,
+    onNotInterested: () -> Unit
 ) {
     val context = LocalContext.current
     Column(
@@ -149,6 +158,32 @@ private fun TitlePreviewBody(
                     Button(onClick = onAdd, modifier = Modifier.padding(top = 12.dp)) {
                         Text("Add")
                     }
+                }
+            }
+        }
+
+        // Same as iOS's TitlePreviewSheet: only offered for something not
+        // already tracked — once it's on your list, Watched lives on its
+        // detail screen, and Not interested no longer means anything.
+        if (!isTracked) {
+            Row(modifier = Modifier.padding(top = 12.dp)) {
+                TextButton(onClick = onMarkWatched) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(end = 6.dp)
+                    )
+                    Text("Watched", color = MaterialTheme.colorScheme.secondary)
+                }
+                TextButton(onClick = onNotInterested) {
+                    Icon(
+                        Icons.Default.ThumbDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 6.dp)
+                    )
+                    Text("Not interested", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

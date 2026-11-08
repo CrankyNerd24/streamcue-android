@@ -90,3 +90,9 @@ All notable changes to this project are documented here. Format follows
   next / No date announced / Finished; Movies into Free to watch / On a
   subscription / Rent or buy / Not streaming yet, then Watched (collapsed
   by default, same as iOS). Collapse state persists across restarts
+
+- Add Watched and Not interested to the title preview screen (reached from
+  Discover and the Services suggestion strips), matching iOS's
+  TitlePreviewSheet. Not interested records an IgnoredTitle, which now
+  also filters Discover and the Services suggestion strips going forward,
+  the same as iOS's visibleShows/visibleMovies hiding ignored titles
