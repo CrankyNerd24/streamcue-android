@@ -20,4 +20,16 @@ interface TmdbApi {
     suspend fun watchProviders(
         @Query("watch_region") region: String = "US"
     ): TmdbProviderListResponse
+
+    @GET("trending/tv/week")
+    suspend fun trendingShows(): TmdbSearchResponse
+
+    @GET("tv/popular")
+    suspend fun popularShows(): TmdbSearchResponse
+
+    @GET("trending/movie/week")
+    suspend fun trendingMovies(): TmdbMovieSearchResponse
+
+    @GET("movie/popular")
+    suspend fun popularMovies(): TmdbMovieSearchResponse
 }

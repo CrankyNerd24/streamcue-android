@@ -98,7 +98,12 @@ Where this file and that one differ, this one wins for Android.
   Android at all yet — add one alongside that work, not before it. Region
   is hardcoded to `"US"` in `TmdbApi.watchProviders` for now; iOS reads
   `AppSettings.region`, which Android has no equivalent setting for yet.
-  `DiscoverScreen` is still a placeholder.
+  `DiscoverScreen`/`DiscoverViewModel` cover Trending and Popular (Shows and
+  Movies each) from TMDB's single-endpoint feeds — iOS's "For you" feed,
+  assembled from the user's own tracked-title genres rather than one
+  endpoint, isn't ported. Tapping a poster never adds anything, same rule
+  as iOS — the grid's add button is a separate, explicit affordance, same
+  pattern as the Add Show/Movie rows.
 - `billing/`, `work/`: not yet populated — Play Billing (Premium unlock) and
   WorkManager (nightly refresh) land here when those features are built.
 
@@ -111,14 +116,16 @@ colour rather than reusing either of these.
 
 ## Version 1 scope
 
-Done: the four-tab `NavHost` shell; Shows and Movies tabs backed by Room
-with Add Show / Add Movie TMDB search flows; a Services tab that picks and
-stores your streaming services (no per-service suggestions yet, no
-free-tier cap). Still ahead: the Discover tab (currently a placeholder),
-per-service suggestion strips on Services, show/movie detail screens,
-where-to-watch data surfaced per title, day-offset scheduling logic ported
-from iOS, air-date notifications, nightly background refresh (WorkManager),
-Play Billing for the Premium one-time unlock, and Play In-App Review.
+Done: the four-tab `NavHost` shell is fully real now — Shows and Movies
+backed by Room with Add Show / Add Movie TMDB search flows, a Services tab
+that picks and stores your streaming services, and a Discover tab covering
+Trending/Popular for both Shows and Movies. Still ahead: iOS's "For you"
+Discover feed and per-service suggestion strips on Services (both need
+genre aggregation from tracked titles), a free-tier cap on Services
+selections, show/movie detail screens, where-to-watch data surfaced per
+title, day-offset scheduling logic ported from iOS, air-date notifications,
+nightly background refresh (WorkManager), Play Billing for the Premium
+one-time unlock, and Play In-App Review.
 
 App icon: reusing the existing TV-logo PNG (`streamcueapp.com`'s `icon.png`)
 as a plain raster mipmap for now rather than a true adaptive icon — that PNG

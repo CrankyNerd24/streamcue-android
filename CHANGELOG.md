@@ -35,3 +35,7 @@ All notable changes to this project are documented here. Format follows
 - Add a Services tab: pick your streaming services from TMDB's watch
   providers list and store the selection with DataStore; per-service
   suggestions and a free-tier cap are still ahead
+
+- Add a Discover tab: browse Trending/Popular Shows and Movies from TMDB
+  and add straight from the grid; the genre-based "for you" feed isn't
+  ported yet
