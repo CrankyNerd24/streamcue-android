@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -28,6 +29,7 @@ import com.streamcueapp.streamcue.model.TrackedShow
  * real vertical slice; everything else in CLAUDE.md's roadmap builds on
  * this screen and HomeViewModel's StateFlow.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(onAddShow: () -> Unit, viewModel: HomeViewModel = viewModel()) {
     val shows by viewModel.shows.collectAsState()
