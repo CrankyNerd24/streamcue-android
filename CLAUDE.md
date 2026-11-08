@@ -104,30 +104,45 @@ Where this file and that one differ, this one wins for Android.
   sharing, no Reminders integration, no cast, no deep-linking into an
   installed streaming app's own UI (iOS's `StreamingServices` scheme
   matching) — Watch now always opens the JustWatch link in a browser.
-  Services is a real but trimmed
-  slice: `ServicesScreen`/`ServicesViewModel` show the picked services from
-  `SubscriptionsStore` (DataStore-backed, the Android analog of iOS's
-  `@AppStorage(Subscriptions.key)`), and `ServicePickerScreen`/
-  `ServicePickerViewModel` pick from TMDB's `/watch/providers/tv` list —
-  but the per-service "popular on your services" suggestion strips from
-  iOS's `SubscriptionsView` (genre aggregation from tracked shows/movies
-  plus a `/discover` query per service) aren't ported yet, and there's no
-  free-tier cap on selections since Premium/Billing doesn't exist on
-  Android at all yet — add one alongside that work, not before it. Region
-  is hardcoded to `"US"` in `TmdbApi.watchProviders` for now; iOS reads
-  `AppSettings.region`, which Android has no equivalent setting for yet.
-  `DiscoverScreen`/`DiscoverViewModel` cover Trending and Popular (Shows and
-  Movies each) from TMDB's single-endpoint feeds — iOS's "For you" feed,
-  assembled from the user's own tracked-title genres rather than one
-  endpoint, isn't ported. Tapping a poster never adds anything, same rule
-  as iOS — it opens `TitlePreviewScreen`/`TitlePreviewViewModel`, the
-  Android analog of iOS's `TitlePreviewSheet`: fetches straight from TMDB
-  (not Room, since the title usually isn't tracked yet) and shows an Add
-  button or a "Tracked" state. The grid tile's own add icon is a separate,
-  explicit affordance that still adds directly without opening the
-  preview, same pattern as the Add Show/Movie rows. `ProviderChip.kt` is a
-  small shared composable used by both detail screens and the preview
-  screen, rather than three copies of the same chip.
+  Services is a real slice now: `ServicesScreen`/`ServicesViewModel` show
+  the picked services from `SubscriptionsStore` (DataStore-backed, the
+  Android analog of iOS's `@AppStorage(Subscriptions.key)`), each with a
+  "popular on your services" strip per media type — ported from iOS's
+  `SubscriptionsView.loadPicks`, narrowed to the top 3 genres across
+  tracked shows/movies via `TmdbApi.discoverShows`/`discoverMovies`.
+  `ServicePickerScreen`/`ServicePickerViewModel` pick from TMDB's
+  `/watch/providers/tv` list. No free-tier cap on selections since
+  Premium/Billing doesn't exist on Android at all yet — add one alongside
+  that work, not before it. Region is hardcoded to `"US"` throughout
+  `TmdbApi` for now; iOS reads `AppSettings.region`, which Android has no
+  equivalent setting for yet. `DiscoverScreen`/`DiscoverViewModel` cover
+  For you / Trending / Popular (Shows and Movies each) — For you is
+  recommendation-based, not genre-based: up to 8 tracked titles as seeds,
+  TMDB's own `/recommendations` for each fetched concurrently, tallied by
+  how many seeds recommend a title, ported from iOS's
+  `DiscoverView.recommendedShows()`/`recommendedMovies()`. Tapping a
+  poster never adds anything, same rule as iOS — it opens
+  `TitlePreviewScreen`/`TitlePreviewViewModel`, the Android analog of
+  iOS's `TitlePreviewSheet`: fetches straight from TMDB (not Room, since
+  the title usually isn't tracked yet) and shows an Add button or a
+  "Tracked" state. The grid tile's own add icon is a separate, explicit
+  affordance that still adds directly without opening the preview, same
+  pattern as the Add Show/Movie rows; the Services suggestion strips reuse
+  the same preview screen. `ProviderChip.kt` is a small shared composable
+  used by both detail screens and the preview screen, rather than three
+  copies of the same chip.
+  `ShowDetailScreen` also has a day-offset control (stepper + tap-to-edit
+  dialog, −7 to 365 days, same range as iOS) and a read-only "Episodes"
+  list for the show's current season — fetched live from TMDB's
+  `/tv/{id}/season/{n}`, not stored. This is a deliberately trimmed analog
+  of iOS's "Recent episodes": no per-episode watched/dismissed state, no
+  undo, no cross-session history. iOS's real episode tracking is
+  `EpisodeSync` + `PendingEpisode`, a whole separate sync subsystem that
+  writes individual episode records as they air and feeds the Ready-to-
+  watch section — that hasn't been ported at all (StreamCue Android has no
+  Ready-to-watch section yet either). Build that properly, as its own
+  entity + sync logic, rather than bolting watched-state onto this
+  read-only list.
 - `work/NightlyRefreshWorker.kt`: a `CoroutineWorker` that refreshes every
   tracked show and movie once a day via `data/Refresh.kt`, one `runCatching`
   per title so a single network failure doesn't skip the rest of the batch.
@@ -145,15 +160,18 @@ colour rather than reusing either of these.
 
 Done: the four-tab `NavHost` shell is fully real now — Shows and Movies
 backed by Room with Add Show / Add Movie TMDB search flows and detail
-screens, a Services tab that picks and stores your streaming services, a
-Discover tab covering Trending/Popular for both Shows and Movies, and a
-nightly WorkManager refresh that keeps tracked titles' schedule/availability
-data current. Still ahead: iOS's "For you" Discover feed and per-service
-suggestion strips on Services (both need genre aggregation from tracked
-titles), a free-tier cap on Services selections, OMDb ratings (TMDB score
-only for now), air-date notifications, deep-linking Watch now into an
-installed streaming app (always opens the JustWatch link in a browser for
-now), Play Billing for the Premium one-time unlock, and Play In-App Review.
+screens (the Shows one has a day-offset control and a read-only current-
+season episode list), a Services tab that picks your streaming services
+and shows per-service suggestion strips, a Discover tab covering For you /
+Trending / Popular for both Shows and Movies, and a nightly WorkManager
+refresh that keeps tracked titles' schedule/availability data current.
+Still ahead: real per-episode watched/dismissed tracking (iOS's
+EpisodeSync/PendingEpisode — a whole separate sync subsystem, not just a
+read-only list) and a Ready-to-watch section built on it, a free-tier cap
+on Services selections, OMDb ratings (TMDB score only for now), air-date
+notifications, deep-linking Watch now into an installed streaming app
+(always opens the JustWatch link in a browser for now), Play Billing for
+the Premium one-time unlock, and Play In-App Review.
 
 App icon: reusing the existing TV-logo PNG (`streamcueapp.com`'s `icon.png`)
 as a plain raster mipmap for now rather than a true adaptive icon — that PNG

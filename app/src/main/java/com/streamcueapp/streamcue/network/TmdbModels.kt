@@ -16,6 +16,7 @@ data class TmdbShowSearchResult(
     @SerialName("overview") val overview: String = "",
     @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
     @SerialName("first_air_date") val firstAirDate: String? = null,
+    @SerialName("vote_average") val voteAverage: Double? = null,
 ) {
     val year: String?
         get() = firstAirDate?.takeIf { it.length >= 4 }?.substring(0, 4)
@@ -95,6 +96,7 @@ data class TmdbMovieSearchResult(
     @SerialName("overview") val overview: String = "",
     @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
     @SerialName("release_date") val releaseDate: String? = null,
+    @SerialName("vote_average") val voteAverage: Double? = null,
 ) {
     val year: String?
         get() = releaseDate?.takeIf { it.length >= 4 }?.substring(0, 4)
@@ -103,6 +105,11 @@ data class TmdbMovieSearchResult(
 @Serializable
 data class TmdbMovieSearchResponse(
     @SerialName("results") val results: List<TmdbMovieSearchResult> = emptyList(),
+)
+
+@Serializable
+data class TmdbSeasonDetail(
+    @SerialName("episodes") val episodes: List<TmdbEpisode> = emptyList(),
 )
 
 @Serializable

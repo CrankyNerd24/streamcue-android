@@ -2,32 +2,45 @@ package com.streamcueapp.streamcue.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,10 +50,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.streamcueapp.streamcue.model.TrackedShow
+import com.streamcueapp.streamcue.network.TmdbEpisode
 import com.streamcueapp.streamcue.network.TmdbImage
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 /** Stands in for iOS's ShowDetailView, trimmed: no household sharing, no
- * reminders, no cast — see CLAUDE.md for what's still ahead. */
+ * reminders, no cast, no custom Watch-on override, no per-episode
+ * watched/dismissed tracking (that's iOS's EpisodeSync, a separate sync
+ * subsystem) — see CLAUDE.md for what's still ahead. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShowDetailScreen(
@@ -50,6 +68,7 @@ fun ShowDetailScreen(
 ) {
     LaunchedEffect(tmdbId) { viewModel.load(tmdbId) }
     val show by viewModel.show.collectAsState()
+    val episodes by viewModel.episodes.collectAsState()
 
     Scaffold(
         topBar = {
@@ -82,8 +101,10 @@ fun ShowDetailScreen(
         } else {
             ShowDetailBody(
                 show = current,
+                episodes = episodes,
                 modifier = Modifier.padding(padding),
-                onWatchedChange = viewModel::setWatched
+                onWatchedChange = viewModel::setWatched,
+                onDayOffsetChange = viewModel::setDayOffset
             )
         }
     }
@@ -92,13 +113,20 @@ fun ShowDetailScreen(
 @Composable
 private fun ShowDetailBody(
     show: TrackedShow,
+    episodes: List<TmdbEpisode>,
     modifier: Modifier = Modifier,
-    onWatchedChange: (Boolean) -> Unit
+    onWatchedChange: (Boolean) -> Unit,
+    onDayOffsetChange: (Int) -> Unit
 ) {
     val context = LocalContext.current
+    var showDayOffsetDialog by remember { mutableStateOf(false) }
+    var episodesExpanded by remember { mutableStateOf(false) }
+    var synopsisExpanded by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Row {
@@ -134,6 +162,91 @@ private fun ShowDetailBody(
             }
         }
 
+        if (!show.nextEpisodeOverview.isNullOrEmpty()) {
+            Text(
+                "Episode synopsis",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .clickable { synopsisExpanded = !synopsisExpanded }
+            )
+            if (synopsisExpanded) {
+                Text(
+                    show.nextEpisodeOverview,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(top = 20.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Day offset", modifier = Modifier.weight(1f))
+            IconButton(onClick = { onDayOffsetChange(show.dayOffset - 1) }) {
+                Icon(Icons.Default.Remove, contentDescription = "Decrease day offset")
+            }
+            Text(
+                show.dayOffsetLabel,
+                color = if (show.dayOffset == 0) {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                modifier = Modifier
+                    .padding(horizontal = 4.dp)
+                    .clickable { showDayOffsetDialog = true }
+            )
+            IconButton(onClick = { onDayOffsetChange(show.dayOffset + 1) }) {
+                Icon(Icons.Default.Add, contentDescription = "Increase day offset")
+            }
+        }
+        Text(
+            "Air dates are the original broadcaster's. Use the offset if this reaches you on a different day.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        show.lastEpisodeLabel?.let { last ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp)
+            ) {
+                Text("Last aired", modifier = Modifier.weight(1f))
+                Text(last, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+
+        if (episodes.isNotEmpty()) {
+            HorizontalDivider(modifier = Modifier.padding(top = 20.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+                    .clickable { episodesExpanded = !episodesExpanded },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Episodes", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    " ${episodes.size}",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            if (episodesExpanded) {
+                episodes.forEach { episode -> EpisodeRow(episode) }
+            }
+        }
+
         if (show.freeOn.isNotEmpty() || show.subscriptionOn.isNotEmpty() || show.rentOrBuyOn.isNotEmpty()) {
             Text(
                 "Where to watch",
@@ -163,5 +276,79 @@ private fun ShowDetailBody(
                 modifier = Modifier.padding(top = 20.dp)
             )
         }
+
+        show.lastRefreshedEpochMillis?.let {
+            Text(
+                "Updated ${relativeTime(it)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 20.dp)
+            )
+        }
+    }
+
+    if (showDayOffsetDialog) {
+        DayOffsetDialog(
+            current = show.dayOffset,
+            onSave = { onDayOffsetChange(it); showDayOffsetDialog = false },
+            onDismiss = { showDayOffsetDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun DayOffsetDialog(current: Int, onSave: (Int) -> Unit, onDismiss: () -> Unit) {
+    var draft by remember { mutableStateOf(current.toString()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Day offset") },
+        text = {
+            Column {
+                Text(
+                    "How many days after the original air date this reaches you. " +
+                        "Negative if it airs early.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                // Default (text) keyboard, not a numeric pad — Android's
+                // Number keyboard usually has no minus key, and negative
+                // offsets (airs early) are a real case here.
+                OutlinedTextField(
+                    value = draft,
+                    onValueChange = { draft = it },
+                    label = { Text("Days, e.g. 233") },
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                draft.trim().toIntOrNull()?.let(onSave) ?: onDismiss()
+            }) { Text("Save") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+private fun EpisodeRow(episode: TmdbEpisode) {
+    Column(modifier = Modifier.padding(top = 10.dp)) {
+        Text(episode.label ?: "Episode", style = MaterialTheme.typography.bodyMedium)
+        Text(
+            episode.airDate?.ifEmpty { null } ?: "Unaired",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+private fun relativeTime(epochMillis: Long): String {
+    val minutes = ChronoUnit.MINUTES.between(Instant.ofEpochMilli(epochMillis), Instant.now())
+    return when {
+        minutes < 1 -> "just now"
+        minutes < 60 -> "$minutes min ago"
+        minutes < 60 * 24 -> "${minutes / 60}h ago"
+        else -> "${minutes / (60 * 24)}d ago"
     }
 }

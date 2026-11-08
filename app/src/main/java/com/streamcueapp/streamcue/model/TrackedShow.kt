@@ -77,8 +77,23 @@ data class TrackedShow(
             System.currentTimeMillis() - it > staleAfterMillis
         } ?: true
 
+    /** "+233 days", "−1 day", "None" — same formatting as iOS's offsetLabel. */
+    val dayOffsetLabel: String
+        get() = when {
+            dayOffset == 0 -> "None"
+            dayOffset == 1 -> "+1 day"
+            dayOffset == -1 -> "−1 day"
+            dayOffset > 0 -> "+$dayOffset days"
+            else -> "−${-dayOffset} days"
+        }
+
     companion object {
         /** How long data stays good enough to skip on a background refresh. */
         const val staleAfterMillis = 6L * 60 * 60 * 1000
+
+        /** Covers a same-week simulcast delay through a year-later streaming
+         * re-release — same range as iOS's dayOffsetRange. */
+        const val dayOffsetMin = -7
+        const val dayOffsetMax = 365
     }
 }

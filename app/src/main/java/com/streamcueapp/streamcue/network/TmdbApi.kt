@@ -47,4 +47,38 @@ interface TmdbApi {
 
     @GET("movie/popular")
     suspend fun popularMovies(): TmdbMovieSearchResponse
+
+    @GET("tv/{id}/recommendations")
+    suspend fun showRecommendations(@Path("id") id: Int): TmdbSearchResponse
+
+    @GET("movie/{id}/recommendations")
+    suspend fun movieRecommendations(@Path("id") id: Int): TmdbMovieSearchResponse
+
+    @GET("tv/{id}/season/{season}")
+    suspend fun seasonDetail(
+        @Path("id") id: Int,
+        @Path("season") season: Int
+    ): TmdbSeasonDetail
+
+    // Popular titles on one service, narrowed to genres already tracked —
+    // ported from iOS's TMDBClient.discoverShows/discoverMovies. `genres`
+    // omits the with_genres param entirely when null (Retrofit drops null
+    // @Query params), matching iOS's "if !genres.isEmpty" check.
+    @GET("discover/tv")
+    suspend fun discoverShows(
+        @Query("with_watch_providers") providerId: Int,
+        @Query("with_genres") genres: String? = null,
+        @Query("watch_region") region: String = "US",
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("vote_count.gte") minVotes: Int = 50
+    ): TmdbSearchResponse
+
+    @GET("discover/movie")
+    suspend fun discoverMovies(
+        @Query("with_watch_providers") providerId: Int,
+        @Query("with_genres") genres: String? = null,
+        @Query("watch_region") region: String = "US",
+        @Query("sort_by") sortBy: String = "popularity.desc",
+        @Query("vote_count.gte") minVotes: Int = 100
+    ): TmdbMovieSearchResponse
 }

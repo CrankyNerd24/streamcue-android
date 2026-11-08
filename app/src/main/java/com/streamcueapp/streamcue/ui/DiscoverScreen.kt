@@ -40,11 +40,10 @@ import coil3.compose.AsyncImage
 import com.streamcueapp.streamcue.network.TmdbImage
 
 /**
- * Stands in for iOS's DiscoverView, trimmed to Trending/Popular — "For you"
- * is assembled from the user's own tracked-title genres on iOS and isn't
- * ported yet (see CLAUDE.md). Tapping a poster never adds anything, same
- * rule as iOS — it opens TitlePreviewScreen instead; the tile's own add
- * icon is a separate, explicit affordance that still adds directly.
+ * Stands in for iOS's DiscoverView: For you / Trending / Popular, each for
+ * Shows and Movies. Tapping a poster never adds anything, same rule as
+ * iOS — it opens TitlePreviewScreen instead; the tile's own add icon is a
+ * separate, explicit affordance that still adds directly.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +59,7 @@ fun DiscoverScreen(
     val trackedShowIds by viewModel.trackedShowIds.collectAsState()
     val trackedMovieIds by viewModel.trackedMovieIds.collectAsState()
     val trackedIds = if (kind == DiscoverKind.TV) trackedShowIds else trackedMovieIds
+    val hasNoSeeds = feed == DiscoverFeed.FOR_YOU && trackedIds.isEmpty()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Discover") }) }
@@ -80,6 +80,7 @@ fun DiscoverScreen(
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                ToggleButton("For you", feed == DiscoverFeed.FOR_YOU) { viewModel.setFeed(DiscoverFeed.FOR_YOU) }
                 ToggleButton("Trending", feed == DiscoverFeed.TRENDING) { viewModel.setFeed(DiscoverFeed.TRENDING) }
                 ToggleButton("Popular", feed == DiscoverFeed.POPULAR) { viewModel.setFeed(DiscoverFeed.POPULAR) }
             }
@@ -89,6 +90,18 @@ fun DiscoverScreen(
                 error != null -> CenteredBox {
                     Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
                 }
+                hasNoSeeds -> CenteredBox {
+                    Text(
+                        if (kind == DiscoverKind.TV) {
+                            "Track a few shows and this fills up with things like them."
+                        } else {
+                            "Add a few films and this fills up with things like them."
+                        },
+                        modifier = Modifier.padding(horizontal = 32.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                items.isEmpty() -> CenteredBox { Text("Nothing here right now.") }
                 else -> LazyVerticalGrid(
                     columns = GridCells.Adaptive(104.dp),
                     contentPadding = PaddingValues(12.dp),

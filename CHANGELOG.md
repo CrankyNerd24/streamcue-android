@@ -59,3 +59,19 @@ All notable changes to this project are documented here. Format follows
   did anything. Tapping the poster now opens a title preview screen
   (fetched straight from TMDB, since the title usually isn't tracked yet)
   with its own Add button, the Android analog of iOS's TitlePreviewSheet
+
+- Add a real "For you" feed to Discover: up to 8 tracked titles as seeds,
+  TMDB's own recommendations for each, tallied by how many seeds recommend
+  a title — the same approach as iOS, not genre matching
+
+- Add a day-offset control and a read-only current-season episode list to
+  the show detail screen; the episode list is TMDB-only for now, with no
+  per-episode watched state (that's iOS's EpisodeSync, a separate sync
+  subsystem, not ported yet)
+
+- Add a next-episode synopsis disclosure, a last-aired row, and an
+  "Updated X ago" footer to the show detail screen
+
+- Add "popular on your services" suggestion strips to the Services tab,
+  one per service for Shows and for Movies, narrowed to the genres already
+  tracked — reuses the title preview screen on tap

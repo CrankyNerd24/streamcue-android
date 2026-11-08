@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -25,6 +26,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
+
+private fun NavHostController.navigateToPreview(item: DiscoverItem) {
+    val kindSegment = if (item.kind == DiscoverKind.MOVIES) "movie" else "tv"
+    navigate("preview/$kindSegment/${item.id}")
+}
 
 private val tabs = listOf(
     Tab("shows", "Shows", Icons.Default.Tv),
@@ -89,13 +95,13 @@ fun RootScaffold() {
                 )
             }
             composable("services") {
-                ServicesScreen(onChooseServices = { navController.navigate("servicePicker") })
+                ServicesScreen(
+                    onChooseServices = { navController.navigate("servicePicker") },
+                    onPreview = { item -> navController.navigateToPreview(item) }
+                )
             }
             composable("discover") {
-                DiscoverScreen(onPreview = { item ->
-                    val kindSegment = if (item.kind == DiscoverKind.MOVIES) "movie" else "tv"
-                    navController.navigate("preview/$kindSegment/${item.id}")
-                })
+                DiscoverScreen(onPreview = { item -> navController.navigateToPreview(item) })
             }
             composable("addShow") {
                 AddShowScreen(onDone = { navController.popBackStack() })
