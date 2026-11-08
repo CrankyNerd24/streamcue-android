@@ -1,6 +1,7 @@
 package com.streamcueapp.streamcue
 
 import android.app.Application
+import com.streamcueapp.streamcue.data.SectionCollapseStore
 import com.streamcueapp.streamcue.data.StreamCueDatabase
 import com.streamcueapp.streamcue.data.SubscriptionsStore
 import com.streamcueapp.streamcue.work.NightlyRefreshWorker
@@ -8,6 +9,7 @@ import com.streamcueapp.streamcue.work.NightlyRefreshWorker
 class StreamCueApp : Application() {
     val database by lazy { StreamCueDatabase.get(this) }
     val subscriptionsStore by lazy { SubscriptionsStore(this) }
+    val sectionCollapseStore by lazy { SectionCollapseStore(this) }
 
     override fun onCreate() {
         super.onCreate()

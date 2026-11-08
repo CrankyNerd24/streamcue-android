@@ -33,9 +33,17 @@ import coil3.compose.AsyncImage
 import com.streamcueapp.streamcue.model.TrackedMovie
 import com.streamcueapp.streamcue.network.TmdbImage
 
-/** Stands in for iOS's WatchlistView (Movies tab) — grouping, detail, and
- * suggestions are still ahead; this is the same empty/populated vertical
- * slice HomeScreen started with, for movies instead of shows. */
+private data class MovieSection(val title: String, val movies: List<TrackedMovie>, val accented: Boolean = false)
+
+/**
+ * Stands in for iOS's WatchlistView (Movies tab), grouped the same way:
+ * Free to watch (accented, same colour rule as iOS), On a subscription,
+ * Rent or buy, Not streaming yet — each from the unwatched list, in that
+ * fixed order (iOS's `MovieAvailability.allCases`) — then Watched last,
+ * collapsed by default (iOS's isWatchedExpanded starts false, unlike the
+ * other sections). No suggestions strip on this screen yet — that's
+ * Discover's and Services' job, not duplicated here.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoviesScreen(
@@ -44,6 +52,8 @@ fun MoviesScreen(
     viewModel: MoviesViewModel = viewModel()
 ) {
     val movies by viewModel.movies.collectAsState()
+    val collapsedSections by viewModel.collapsedSections.collectAsState()
+    val watchedExpanded by viewModel.watchedExpanded.collectAsState()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Movies") }) },
@@ -65,13 +75,65 @@ fun MoviesScreen(
                 Text("No movies tracked yet.")
             }
         } else {
+            val unwatched = movies.filter { !it.watched }
+            val watched = movies.filter { it.watched }
+            val sections = groupMovies(unwatched)
+
             LazyColumn(modifier = Modifier.padding(padding)) {
-                items(movies, key = { it.tmdbId }) { movie ->
-                    MovieRow(movie, onClick = { onMovieClick(movie.tmdbId) })
+                sections.forEach { section ->
+                    val expanded = section.title !in collapsedSections
+                    item(key = "header-${section.title}") {
+                        SectionHeader(
+                            title = section.title,
+                            count = section.movies.size,
+                            expanded = expanded,
+                            accented = section.accented,
+                            onClick = { viewModel.toggleSection(section.title) }
+                        )
+                    }
+                    if (expanded) {
+                        items(section.movies, key = { it.tmdbId }) { movie ->
+                            MovieRow(movie, onClick = { onMovieClick(movie.tmdbId) })
+                        }
+                    }
+                }
+                if (watched.isNotEmpty()) {
+                    item(key = "header-watched") {
+                        SectionHeader(
+                            title = "Watched",
+                            count = watched.size,
+                            expanded = watchedExpanded,
+                            onClick = { viewModel.toggleWatchedExpanded() }
+                        )
+                    }
+                    if (watchedExpanded) {
+                        items(watched, key = { it.tmdbId }) { movie ->
+                            MovieRow(movie, onClick = { onMovieClick(movie.tmdbId) })
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+/** Mirrors WatchlistView.swift's group(_:) over MovieAvailability.allCases. */
+private fun groupMovies(unwatched: List<TrackedMovie>): List<MovieSection> {
+    val free = unwatched.filter { it.freeOn.isNotEmpty() }
+    val subscription = unwatched.filter { it.freeOn.isEmpty() && it.subscriptionOn.isNotEmpty() }
+    val rentOrBuy = unwatched.filter {
+        it.freeOn.isEmpty() && it.subscriptionOn.isEmpty() && it.rentOrBuyOn.isNotEmpty()
+    }
+    val unavailable = unwatched.filter {
+        it.freeOn.isEmpty() && it.subscriptionOn.isEmpty() && it.rentOrBuyOn.isEmpty()
+    }
+
+    return listOfNotNull(
+        free.takeIf { it.isNotEmpty() }?.let { MovieSection("Free to watch", it, accented = true) },
+        subscription.takeIf { it.isNotEmpty() }?.let { MovieSection("On a subscription", it) },
+        rentOrBuy.takeIf { it.isNotEmpty() }?.let { MovieSection("Rent or buy", it) },
+        unavailable.takeIf { it.isNotEmpty() }?.let { MovieSection("Not streaming yet", it) },
+    )
 }
 
 @Composable

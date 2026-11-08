@@ -32,12 +32,20 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.streamcueapp.streamcue.model.TrackedShow
 import com.streamcueapp.streamcue.network.TmdbImage
+import java.time.LocalDate
+
+private val endedStatuses = setOf("Ended", "Canceled", "Cancelled")
+
+private data class ShowSection(val title: String, val shows: List<TrackedShow>, val accented: Boolean = false)
 
 /**
- * Stands in for ContentView.swift's Shows tab. No sections, no Ready to
- * watch, no Watch Now yet — the empty/populated list split is the first
- * real vertical slice; everything else in CLAUDE.md's roadmap builds on
- * this screen and HomeViewModel's StateFlow.
+ * Stands in for ContentView.swift's Shows tab, grouped the same way:
+ * Airing today (accented, same colour rule as iOS's Theme.tonight),
+ * Airing next (dated, soonest first), No date announced, Finished — each a
+ * collapsible SectionHeader, collapse state persisted the same way iOS
+ * persists collapsedShowSections. No Ready to watch section yet — that's
+ * iOS's EpisodeSync/PendingEpisode, a separate sync subsystem not ported
+ * (see CLAUDE.md), and no Watch Now shortcut either.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,6 +55,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel()
 ) {
     val shows by viewModel.shows.collectAsState()
+    val collapsedSections by viewModel.collapsedSections.collectAsState()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Shows") }) },
@@ -68,13 +77,50 @@ fun HomeScreen(
                 Text("No shows tracked yet.")
             }
         } else {
+            val sections = groupShows(shows)
             LazyColumn(modifier = Modifier.padding(padding)) {
-                items(shows, key = { it.tmdbId }) { show ->
-                    ShowRow(show, onClick = { onShowClick(show.tmdbId) })
+                sections.forEach { section ->
+                    val expanded = section.title !in collapsedSections
+                    item(key = "header-${section.title}") {
+                        SectionHeader(
+                            title = section.title,
+                            count = section.shows.size,
+                            expanded = expanded,
+                            accented = section.accented,
+                            onClick = { viewModel.toggleSection(section.title) }
+                        )
+                    }
+                    if (expanded) {
+                        items(section.shows, key = { it.tmdbId }) { show ->
+                            ShowRow(show, onClick = { onShowClick(show.tmdbId) })
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+/** Mirrors ContentView.swift's dated/airingToday/upcoming/waiting/finished,
+ * minus the Ready-to-watch exclusion (no such section exists here yet). */
+private fun groupShows(shows: List<TrackedShow>): List<ShowSection> {
+    val today = LocalDate.now().toEpochDay()
+    val dated = shows
+        .filter { it.effectiveAirDateEpochDay != null }
+        .sortedBy { it.effectiveAirDateEpochDay }
+    val airingToday = dated.filter { it.effectiveAirDateEpochDay == today }
+    val airingTodayIds = airingToday.map { it.tmdbId }.toSet()
+    val upcoming = dated.filter { it.tmdbId !in airingTodayIds }
+    val undated = shows.filter { it.effectiveAirDateEpochDay == null }
+    val finished = undated.filter { it.status in endedStatuses }
+    val waiting = undated.filter { it.status !in endedStatuses }
+
+    return listOfNotNull(
+        airingToday.takeIf { it.isNotEmpty() }?.let { ShowSection("Airing today", it, accented = true) },
+        upcoming.takeIf { it.isNotEmpty() }?.let { ShowSection("Airing next", it) },
+        waiting.takeIf { it.isNotEmpty() }?.let { ShowSection("No date announced", it) },
+        finished.takeIf { it.isNotEmpty() }?.let { ShowSection("Finished", it) },
+    )
 }
 
 @Composable

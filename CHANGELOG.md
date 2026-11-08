@@ -84,3 +84,9 @@ All notable changes to this project are documented here. Format follows
   DetailSection composable) — Overview, Ratings, Schedule, Episodes, and
   Where to watch, standing in for iOS's grouped List/Section layout.
   Episodes defaults collapsed, matching iOS's "Recent episodes"
+
+- Group the Shows and Movies list screens into collapsible sections,
+  matching iOS's ContentView/WatchlistView: Shows into Airing today / Airing
+  next / No date announced / Finished; Movies into Free to watch / On a
+  subscription / Rent or buy / Not streaming yet, then Watched (collapsed
+  by default, same as iOS). Collapse state persists across restarts

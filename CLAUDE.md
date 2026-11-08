@@ -66,7 +66,12 @@ Where this file and that one differ, this one wins for Android.
   `TrackedShowDao` / `TrackedMovieDao` (`observeAll`, `observe(tmdbId)`,
   `find`, `insert` with `OnConflictStrategy.IGNORE`, `update`, `delete`),
   `Converters` (List<String>/List<Int> ↔ JSON via kotlinx.serialization),
-  `Refresh.kt` (TMDB-only refresh for one show/movie, ported from
+  `AppPreferences.kt` (the one shared `Context.appDataStore` — Preferences
+  DataStore enforces a single instance per file, so `SubscriptionsStore`
+  and `SectionCollapseStore` both read this rather than declaring their
+  own), `SectionCollapseStore.kt` (Shows/Movies list-section collapse
+  state — see the `ui/` entry below), `Refresh.kt` (TMDB-only refresh for
+  one show/movie, ported from
   `TrackedShow.refresh()`/`TrackedMovie.refresh()` on iOS — shared by the
   detail screens' refresh-if-stale and `NightlyRefreshWorker`; OMDb ratings
   aren't ported, so `imdbScore`/`rottenTomatoesScore`/`metacriticScore` stay
@@ -91,8 +96,23 @@ Where this file and that one differ, this one wins for Android.
   Discover, matching iOS `RootView`'s `TabView`) that `MainActivity` sets as
   its content, built on `navigation-compose`. Shows and Movies are real
   vertical slices: `HomeScreen`/`HomeViewModel` and `MoviesScreen`/
-  `MoviesViewModel` (empty state vs. a live list from Room, each row showing
-  a poster and tappable through to its detail screen), each with its own Add
+  `MoviesViewModel` group their list into collapsible `SectionHeader`
+  groups, the Android analog of iOS's `ContentView`/`WatchlistView`
+  section headers — Shows into Airing today (accented) / Airing next / No
+  date announced / Finished (`groupShows`, mirroring `ContentView`'s
+  `dated`/`airingToday`/`upcoming`/`waiting`/`finished`, minus the Ready-
+  to-watch exclusion, since no such section exists here); Movies into Free
+  to watch (accented) / On a subscription / Rent or buy / Not streaming
+  yet from the unwatched list (`groupMovies`, mirroring `WatchlistView`'s
+  `group(_:)` over `MovieAvailability.allCases`), then Watched last. Every
+  section defaults expanded and persists collapse state by exclusion
+  (`SectionCollapseStore.collapsed`), except Watched, which defaults
+  collapsed via its own flag (`watchedExpanded`) — iOS uses the same two
+  mechanisms (`@AppStorage("collapsedShowSections")` vs.
+  `@AppStorage("watchedExpanded")`), not one. No Ready-to-watch section
+  and no Watch Now shortcut yet — both ride iOS's `PendingEpisode`/
+  `EpisodeSync`, not ported (see below). Each row is tappable through to
+  its detail screen, each with its own Add
   flow pushed on top of the tab graph (`AddShowScreen`/`AddShowViewModel`,
   `AddMovieScreen`/`AddMovieViewModel` — debounced TMDB search, same shape
   as iOS's LookupView) and its own detail screen (`ShowDetailScreen`/
@@ -175,19 +195,20 @@ colour rather than reusing either of these.
 ## Version 1 scope
 
 Done: the four-tab `NavHost` shell is fully real now — Shows and Movies
-backed by Room with Add Show / Add Movie TMDB search flows and detail
-screens (the Shows one has a day-offset control and a read-only current-
-season episode list), a Services tab that picks your streaming services
-and shows per-service suggestion strips, a Discover tab covering For you /
-Trending / Popular for both Shows and Movies, and a nightly WorkManager
-refresh that keeps tracked titles' schedule/availability data current.
-Still ahead: real per-episode watched/dismissed tracking (iOS's
-EpisodeSync/PendingEpisode — a whole separate sync subsystem, not just a
-read-only list) and a Ready-to-watch section built on it, a free-tier cap
-on Services selections, OMDb ratings (TMDB score only for now), air-date
-notifications, deep-linking Watch now into an installed streaming app
-(always opens the JustWatch link in a browser for now), Play Billing for
-the Premium one-time unlock, and Play In-App Review.
+backed by Room, each grouped into collapsible sections matching iOS's own
+grouping, with Add Show / Add Movie TMDB search flows and detail screens
+(the Shows one has a day-offset control and a read-only current-season
+episode list), a Services tab that picks your streaming services and shows
+per-service suggestion strips, a Discover tab covering For you / Trending /
+Popular for both Shows and Movies, and a nightly WorkManager refresh that
+keeps tracked titles' schedule/availability data current. Still ahead: real
+per-episode watched/dismissed tracking (iOS's EpisodeSync/PendingEpisode —
+a whole separate sync subsystem, not just a read-only list) and a
+Ready-to-watch section built on it, a free-tier cap on Services selections,
+OMDb ratings (TMDB score only for now), air-date notifications,
+deep-linking Watch now into an installed streaming app (always opens the
+JustWatch link in a browser for now), Play Billing for the Premium
+one-time unlock, and Play In-App Review.
 
 App icon: reusing the existing TV-logo PNG (`streamcueapp.com`'s `icon.png`)
 as a plain raster mipmap for now rather than a true adaptive icon — that PNG
