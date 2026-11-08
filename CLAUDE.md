@@ -71,11 +71,16 @@ Where this file and that one differ, this one wins for Android.
 - `ui/theme/Theme.kt`: dark-only Compose `MaterialTheme` (matches iOS's
   `.preferredColorScheme(.dark)`) built from named brand-colour constants
   matching the marketing site and iOS app — see `colors.xml`.
-- `ui/`: `HomeScreen` + `HomeViewModel` (Shows tab — the first vertical slice,
-  empty state vs. a live list from Room). `MainActivity` wraps it in
-  `StreamCueRoot`; a real `NavHost` (Shows / Movies / Services / Discover,
-  matching iOS `RootView`'s `TabView`) replaces that single screen as the
-  other tabs get built.
+- `ui/`: `RootScaffold` — the four-tab shell (Shows / Movies / Services /
+  Discover, matching iOS `RootView`'s `TabView`) that `MainActivity` sets as
+  its content, built on `navigation-compose`. `HomeScreen` + `HomeViewModel`
+  back the Shows tab (the first real vertical slice — empty state vs. a live
+  list from Room) and the Add Show flow (`AddShowScreen` + `AddShowViewModel`,
+  a debounced TMDB search pushed on top of the tab graph, same as iOS's
+  LookupView). `MoviesScreen`, `ServicesScreen`, `DiscoverScreen` are
+  placeholders — wire them up to real data the same way Shows was built.
+- `network/TmdbImage.kt`: poster URL helper (`image.tmdb.org/t/p/wNNN`), same
+  scheme as iOS's `TMDB.swift` image helpers.
 - `billing/`, `work/`: not yet populated — Play Billing (Premium unlock) and
   WorkManager (nightly refresh) land here when those features are built.
 
@@ -88,12 +93,12 @@ colour rather than reusing either of these.
 
 ## Version 1 scope
 
-The Shows tab backed by Room (done, minimal), then: Movies/Watchlist tab,
-Services/Subscriptions tab, Discover tab, Add Show flow with TMDB search
-wired into the UI, show detail screen, where-to-watch data surfaced per show,
-day-offset scheduling logic ported from iOS, air-date notifications, nightly
-background refresh (WorkManager), Play Billing for the Premium one-time
-unlock, Play In-App Review, and the real four-tab `NavHost`.
+Done: the four-tab `NavHost` shell, the Shows tab backed by Room, and an Add
+Show flow with TMDB search. Still ahead: real Movies/Services/Discover tabs
+(currently placeholders), show detail screen, where-to-watch data surfaced
+per show, day-offset scheduling logic ported from iOS, air-date
+notifications, nightly background refresh (WorkManager), Play Billing for
+the Premium one-time unlock, and Play In-App Review.
 
 App icon: reusing the existing TV-logo PNG (`streamcueapp.com`'s `icon.png`)
 as a plain raster mipmap for now rather than a true adaptive icon — that PNG

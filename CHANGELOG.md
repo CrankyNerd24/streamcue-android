@@ -17,3 +17,10 @@ All notable changes to this project are documented here. Format follows
 
 - Add the first vertical slice: a Shows screen backed by Room, showing an
   empty state or a live list of tracked shows
+
+- Add an Add Show flow: a debounced TMDB search screen reachable from the
+  Shows tab, with poster thumbnails and dedup against already-tracked shows
+
+- Add the four-tab bottom nav shell (Shows, Movies, Services, Discover)
+  matching the iOS app's tab bar, with Movies/Services/Discover as
+  placeholders until their real data lands
