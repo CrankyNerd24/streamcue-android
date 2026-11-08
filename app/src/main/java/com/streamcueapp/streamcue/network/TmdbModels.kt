@@ -15,7 +15,11 @@ data class TmdbShowSearchResult(
     @SerialName("poster_path") val posterPath: String? = null,
     @SerialName("overview") val overview: String = "",
     @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
-)
+    @SerialName("first_air_date") val firstAirDate: String? = null,
+) {
+    val year: String?
+        get() = firstAirDate?.takeIf { it.length >= 4 }?.substring(0, 4)
+}
 
 @Serializable
 data class TmdbSearchResponse(

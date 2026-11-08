@@ -6,6 +6,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -25,11 +29,16 @@ import com.streamcueapp.streamcue.model.TrackedShow
  * this screen and HomeViewModel's StateFlow.
  */
 @Composable
-fun HomeScreen(viewModel: HomeViewModel = viewModel()) {
+fun HomeScreen(onAddShow: () -> Unit, viewModel: HomeViewModel = viewModel()) {
     val shows by viewModel.shows.collectAsState()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Shows") }) }
+        topBar = { TopAppBar(title = { Text("Shows") }) },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onAddShow) {
+                Icon(Icons.Default.Add, contentDescription = "Add a show")
+            }
+        }
     ) { padding ->
         if (shows.isEmpty()) {
             Column(
