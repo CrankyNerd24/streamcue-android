@@ -142,7 +142,23 @@ Where this file and that one differ, this one wins for Android.
   watch section — that hasn't been ported at all (StreamCue Android has no
   Ready-to-watch section yet either). Build that properly, as its own
   entity + sync logic, rather than bolting watched-state onto this
-  read-only list.
+  read-only list. Both detail screens are laid out as `DetailSection.kt`
+  groups — a shared titled/collapsible composable standing in for iOS's
+  grouped `List`/`Section` style. Episode synopsis is folded into the
+  Schedule section's content rather than getting its own nested disclosure
+  (iOS nests a `DisclosureGroup` inside that section; one level of
+  collapse reads cleaner on a phone than two). Episodes defaults collapsed,
+  matching iOS's "Recent episodes"; Overview/Ratings/Where to watch default
+  open, matching iOS always showing them (Android just makes them
+  collapsible too, since the screen reads better shorter). `ScoreBadge.kt`
+  and `relativeTime()` (`RelativeTime.kt`) are the other two small shared
+  pieces between the two detail screens.
+  Already-tracked titles are filtered out of Discover's grid and the
+  Services suggestion strips — `DiscoverScreen`'s `visibleItems` and
+  `ServicesScreen`'s per-service `shows`/`movies` both subtract the
+  current `trackedShowIds`/`trackedMovieIds`, same as iOS's
+  `visibleShows`/`visibleMovies`. An item disappears from these screens
+  the moment it's added, reactively, not just on next fetch.
 - `work/NightlyRefreshWorker.kt`: a `CoroutineWorker` that refreshes every
   tracked show and movie once a day via `data/Refresh.kt`, one `runCatching`
   per title so a single network failure doesn't skip the rest of the batch.

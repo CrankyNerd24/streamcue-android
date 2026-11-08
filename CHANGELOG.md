@@ -75,3 +75,12 @@ All notable changes to this project are documented here. Format follows
 - Add "popular on your services" suggestion strips to the Services tab,
   one per service for Shows and for Movies, narrowed to the genres already
   tracked — reuses the title preview screen on tap
+
+- Fix Discover and the Services suggestion strips showing already-tracked
+  titles — they now filter them out reactively, the same as iOS's
+  visibleShows/visibleMovies, so a tile disappears the moment it's added
+
+- Rework both detail screens into titled, collapsible sections (a shared
+  DetailSection composable) — Overview, Ratings, Schedule, Episodes, and
+  Where to watch, standing in for iOS's grouped List/Section layout.
+  Episodes defaults collapsed, matching iOS's "Recent episodes"

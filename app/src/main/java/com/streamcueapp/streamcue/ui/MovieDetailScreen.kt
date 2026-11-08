@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -39,7 +41,9 @@ import coil3.compose.AsyncImage
 import com.streamcueapp.streamcue.model.TrackedMovie
 import com.streamcueapp.streamcue.network.TmdbImage
 
-/** The Movies-tab analog of ShowDetailScreen — see it for the shared layout reasoning. */
+/** The Movies-tab analog of ShowDetailScreen — same collapsible
+ * `DetailSection` layout, trimmed to what movies actually have (no
+ * schedule, no episodes). See ShowDetailScreen for the shared reasoning. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MovieDetailScreen(
@@ -98,9 +102,10 @@ private fun MovieDetailBody(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
     ) {
-        Row {
+        Row(modifier = Modifier.padding(top = 16.dp)) {
             AsyncImage(
                 model = TmdbImage.poster(movie.posterPath, width = 342),
                 contentDescription = null,
@@ -111,14 +116,13 @@ private fun MovieDetailBody(
                     .clip(MaterialTheme.shapes.medium)
             )
             Column(modifier = Modifier.padding(start = 16.dp)) {
+                Text(movie.title, style = MaterialTheme.typography.titleMedium)
                 if (movie.subtitle.isNotEmpty()) {
-                    Text(movie.subtitle, style = MaterialTheme.typography.bodyMedium)
-                }
-                movie.headlineRating?.let {
                     Text(
-                        it,
+                        movie.subtitle,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
                     )
                 }
                 Row(
@@ -135,33 +139,49 @@ private fun MovieDetailBody(
             }
         }
 
-        if (movie.freeOn.isNotEmpty() || movie.subscriptionOn.isNotEmpty() || movie.rentOrBuyOn.isNotEmpty()) {
-            Text(
-                "Where to watch",
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(top = 20.dp, bottom = 8.dp)
-            )
-            LazyRow {
-                items(movie.freeOn) { ProviderChip(it, isFree = true) }
-                items(movie.subscriptionOn) { ProviderChip(it, isFree = false) }
-                items(movie.rentOrBuyOn) { ProviderChip(it, isFree = false) }
-            }
-        }
-
-        movie.watchLink?.let { link ->
-            Button(
-                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))) },
-                modifier = Modifier.padding(top = 12.dp)
-            ) {
-                Text("Watch now")
-            }
-        }
-
         if (movie.overview.isNotEmpty()) {
+            DetailSection(title = "Overview") {
+                Text(movie.overview, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+
+        if (movie.hasAnyRating) {
+            DetailSection(title = "Ratings") {
+                Row {
+                    movie.imdbScore?.let { ScoreBadge("IMDb", it) }
+                    movie.rottenTomatoesScore?.let { ScoreBadge("Rotten Tomatoes", it) }
+                    movie.metacriticScore?.let { ScoreBadge("Metacritic", it) }
+                    if ((movie.tmdbScore ?: 0.0) > 0.0) {
+                        ScoreBadge("TMDB", "%.1f".format(movie.tmdbScore))
+                    }
+                }
+            }
+        }
+
+        if (movie.freeOn.isNotEmpty() || movie.subscriptionOn.isNotEmpty() || movie.rentOrBuyOn.isNotEmpty()) {
+            DetailSection(title = "Where to watch") {
+                LazyRow {
+                    items(movie.freeOn) { ProviderChip(it, isFree = true) }
+                    items(movie.subscriptionOn) { ProviderChip(it, isFree = false) }
+                    items(movie.rentOrBuyOn) { ProviderChip(it, isFree = false) }
+                }
+                movie.watchLink?.let { link ->
+                    Button(
+                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))) },
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
+                        Text("Watch now")
+                    }
+                }
+            }
+        }
+
+        movie.lastRefreshedEpochMillis?.let {
             Text(
-                movie.overview,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 20.dp)
+                "Updated ${relativeTime(it)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(vertical = 16.dp)
             )
         }
     }

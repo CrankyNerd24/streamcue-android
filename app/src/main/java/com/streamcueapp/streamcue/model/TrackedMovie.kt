@@ -58,6 +58,10 @@ data class TrackedMovie(
             else -> null
         }
 
+    val hasAnyRating: Boolean
+        get() = !imdbScore.isNullOrEmpty() || !rottenTomatoesScore.isNullOrEmpty() ||
+            !metacriticScore.isNullOrEmpty() || (tmdbScore ?: 0.0) > 0.0
+
     val isStale: Boolean
         get() = lastRefreshedEpochMillis?.let {
             System.currentTimeMillis() - it > staleAfterMillis

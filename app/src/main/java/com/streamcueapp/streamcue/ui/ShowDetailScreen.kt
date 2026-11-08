@@ -24,7 +24,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,13 +51,18 @@ import coil3.compose.AsyncImage
 import com.streamcueapp.streamcue.model.TrackedShow
 import com.streamcueapp.streamcue.network.TmdbEpisode
 import com.streamcueapp.streamcue.network.TmdbImage
-import java.time.Instant
-import java.time.temporal.ChronoUnit
 
-/** Stands in for iOS's ShowDetailView, trimmed: no household sharing, no
- * reminders, no cast, no custom Watch-on override, no per-episode
- * watched/dismissed tracking (that's iOS's EpisodeSync, a separate sync
- * subsystem) — see CLAUDE.md for what's still ahead. */
+/**
+ * Stands in for iOS's ShowDetailView, laid out as the same kind of
+ * collapsible, titled groups iOS's grouped List/Section style gives —
+ * Episode synopsis and Episodes mirror iOS's actual DisclosureGroup/
+ * "Recent episodes" collapse (both default collapsed, same as iOS);
+ * Ratings and Where to watch are collapsible too, for a shorter screen,
+ * but default open since iOS always shows them. Trimmed vs. iOS: no
+ * household sharing, no reminders, no cast, no custom Watch-on override,
+ * no per-episode watched/dismissed tracking (that's iOS's EpisodeSync, a
+ * separate sync subsystem) — see CLAUDE.md for what's still ahead.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShowDetailScreen(
@@ -120,16 +124,14 @@ private fun ShowDetailBody(
 ) {
     val context = LocalContext.current
     var showDayOffsetDialog by remember { mutableStateOf(false) }
-    var episodesExpanded by remember { mutableStateOf(false) }
-    var synopsisExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(horizontal = 16.dp)
     ) {
-        Row {
+        Row(modifier = Modifier.padding(top = 16.dp)) {
             AsyncImage(
                 model = TmdbImage.poster(show.posterPath, width = 342),
                 contentDescription = null,
@@ -140,14 +142,13 @@ private fun ShowDetailBody(
                     .clip(MaterialTheme.shapes.medium)
             )
             Column(modifier = Modifier.padding(start = 16.dp)) {
-                Text(show.scheduleSummary, style = MaterialTheme.typography.bodyMedium)
-                show.headlineRating?.let {
-                    Text(
-                        it,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(show.name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    show.status.ifEmpty { "—" },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
                 Row(
                     modifier = Modifier.padding(top = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -162,119 +163,111 @@ private fun ShowDetailBody(
             }
         }
 
-        if (!show.nextEpisodeOverview.isNullOrEmpty()) {
-            Text(
-                "Episode synopsis",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .padding(top = 16.dp)
-                    .clickable { synopsisExpanded = !synopsisExpanded }
-            )
-            if (synopsisExpanded) {
+        if (show.overview.isNotEmpty()) {
+            DetailSection(title = "Overview") {
+                Text(show.overview, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
+
+        if (show.hasAnyRating) {
+            DetailSection(title = "Ratings") {
+                Row {
+                    show.imdbScore?.let { ScoreBadge("IMDb", it) }
+                    show.rottenTomatoesScore?.let { ScoreBadge("Rotten Tomatoes", it) }
+                    show.metacriticScore?.let { ScoreBadge("Metacritic", it) }
+                    if ((show.tmdbScore ?: 0.0) > 0.0) {
+                        ScoreBadge("TMDB", "%.1f".format(show.tmdbScore))
+                    }
+                }
+            }
+        }
+
+        DetailSection(title = "Schedule") {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Text("Next", modifier = Modifier.weight(1f))
+                Text(
+                    show.scheduleSummary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (!show.nextEpisodeOverview.isNullOrEmpty()) {
                 Text(
                     show.nextEpisodeOverview,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
-        }
 
-        HorizontalDivider(modifier = Modifier.padding(top = 20.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Day offset", modifier = Modifier.weight(1f))
-            IconButton(onClick = { onDayOffsetChange(show.dayOffset - 1) }) {
-                Icon(Icons.Default.Remove, contentDescription = "Decrease day offset")
-            }
-            Text(
-                show.dayOffsetLabel,
-                color = if (show.dayOffset == 0) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                modifier = Modifier
-                    .padding(horizontal = 4.dp)
-                    .clickable { showDayOffsetDialog = true }
-            )
-            IconButton(onClick = { onDayOffsetChange(show.dayOffset + 1) }) {
-                Icon(Icons.Default.Add, contentDescription = "Increase day offset")
-            }
-        }
-        Text(
-            "Air dates are the original broadcaster's. Use the offset if this reaches you on a different day.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        show.lastEpisodeLabel?.let { last ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp)
+                    .padding(top = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Last aired", modifier = Modifier.weight(1f))
-                Text(last, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Day offset", modifier = Modifier.weight(1f))
+                IconButton(onClick = { onDayOffsetChange(show.dayOffset - 1) }) {
+                    Icon(Icons.Default.Remove, contentDescription = "Decrease day offset")
+                }
+                Text(
+                    show.dayOffsetLabel,
+                    color = if (show.dayOffset == 0) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .clickable { showDayOffsetDialog = true }
+                )
+                IconButton(onClick = { onDayOffsetChange(show.dayOffset + 1) }) {
+                    Icon(Icons.Default.Add, contentDescription = "Increase day offset")
+                }
+            }
+            Text(
+                "Air dates are the original broadcaster's. Use the offset if this reaches you on a different day.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            show.lastEpisodeLabel?.let { last ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                ) {
+                    Text("Last aired", modifier = Modifier.weight(1f))
+                    Text(last, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
 
         if (episodes.isNotEmpty()) {
-            HorizontalDivider(modifier = Modifier.padding(top = 20.dp))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp)
-                    .clickable { episodesExpanded = !episodesExpanded },
-                verticalAlignment = Alignment.CenterVertically
+            DetailSection(
+                title = "Episodes",
+                initiallyExpanded = false,
+                trailingLabel = episodes.size.toString()
             ) {
-                Text("Episodes", style = MaterialTheme.typography.titleSmall)
-                Text(
-                    " ${episodes.size}",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-            if (episodesExpanded) {
                 episodes.forEach { episode -> EpisodeRow(episode) }
             }
         }
 
         if (show.freeOn.isNotEmpty() || show.subscriptionOn.isNotEmpty() || show.rentOrBuyOn.isNotEmpty()) {
-            Text(
-                "Where to watch",
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(top = 20.dp, bottom = 8.dp)
-            )
-            LazyRow {
-                items(show.freeOn) { ProviderChip(it, isFree = true) }
-                items(show.subscriptionOn) { ProviderChip(it, isFree = false) }
-                items(show.rentOrBuyOn) { ProviderChip(it, isFree = false) }
+            DetailSection(title = "Where to watch") {
+                LazyRow {
+                    items(show.freeOn) { ProviderChip(it, isFree = true) }
+                    items(show.subscriptionOn) { ProviderChip(it, isFree = false) }
+                    items(show.rentOrBuyOn) { ProviderChip(it, isFree = false) }
+                }
+                show.watchLink?.let { link ->
+                    Button(
+                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))) },
+                        modifier = Modifier.padding(top = 8.dp)
+                    ) {
+                        Text("Watch now")
+                    }
+                }
             }
-        }
-
-        show.watchLink?.let { link ->
-            Button(
-                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link))) },
-                modifier = Modifier.padding(top = 12.dp)
-            ) {
-                Text("Watch now")
-            }
-        }
-
-        if (show.overview.isNotEmpty()) {
-            Text(
-                show.overview,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 20.dp)
-            )
         }
 
         show.lastRefreshedEpochMillis?.let {
@@ -282,7 +275,7 @@ private fun ShowDetailBody(
                 "Updated ${relativeTime(it)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 20.dp)
+                modifier = Modifier.padding(vertical = 16.dp)
             )
         }
     }
@@ -340,15 +333,5 @@ private fun EpisodeRow(episode: TmdbEpisode) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-    }
-}
-
-private fun relativeTime(epochMillis: Long): String {
-    val minutes = ChronoUnit.MINUTES.between(Instant.ofEpochMilli(epochMillis), Instant.now())
-    return when {
-        minutes < 1 -> "just now"
-        minutes < 60 -> "$minutes min ago"
-        minutes < 60 * 24 -> "${minutes / 60}h ago"
-        else -> "${minutes / (60 * 24)}d ago"
     }
 }

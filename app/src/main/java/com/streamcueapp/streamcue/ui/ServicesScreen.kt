@@ -54,6 +54,8 @@ fun ServicesScreen(
     val showPicks by viewModel.showPicks.collectAsState()
     val moviePicks by viewModel.moviePicks.collectAsState()
     val isLoadingPicks by viewModel.isLoadingPicks.collectAsState()
+    val trackedShowIds by viewModel.trackedShowIds.collectAsState()
+    val trackedMovieIds by viewModel.trackedMovieIds.collectAsState()
 
     Scaffold(
         topBar = {
@@ -83,8 +85,12 @@ fun ServicesScreen(
                 items(services, key = { it.id }) { service ->
                     Column {
                         ServiceRow(service)
+                        // Already-tracked titles never show here, same
+                        // reasoning as Discover's visibleItems filter.
                         val shows = showPicks[service.id].orEmpty()
+                            .filterNot { it.id in trackedShowIds }
                         val movies = moviePicks[service.id].orEmpty()
+                            .filterNot { it.id in trackedMovieIds }
                         if (isLoadingPicks && shows.isEmpty() && movies.isEmpty()) {
                             CircularProgressIndicator(
                                 modifier = Modifier

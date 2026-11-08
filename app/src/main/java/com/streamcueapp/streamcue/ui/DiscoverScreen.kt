@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,6 +59,9 @@ fun DiscoverScreen(
     val trackedMovieIds by viewModel.trackedMovieIds.collectAsState()
     val trackedIds = if (kind == DiscoverKind.TV) trackedShowIds else trackedMovieIds
     val hasNoSeeds = feed == DiscoverFeed.FOR_YOU && trackedIds.isEmpty()
+    // Already-tracked titles never show here, same as iOS's visibleShows/
+    // visibleMovies — there's nothing left to do with one from this screen.
+    val visibleItems = items.filterNot { it.id in trackedIds }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Discover") }) }
@@ -101,17 +103,16 @@ fun DiscoverScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                items.isEmpty() -> CenteredBox { Text("Nothing here right now.") }
+                visibleItems.isEmpty() -> CenteredBox { Text("Nothing here right now.") }
                 else -> LazyVerticalGrid(
                     columns = GridCells.Adaptive(104.dp),
                     contentPadding = PaddingValues(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(items, key = { "${it.kind}-${it.id}" }) { item ->
+                    items(visibleItems, key = { "${it.kind}-${it.id}" }) { item ->
                         DiscoverTile(
                             item = item,
-                            alreadyTracked = item.id in trackedIds,
                             onAdd = { viewModel.add(item) },
                             onClick = { onPreview(item) }
                         )
@@ -141,7 +142,6 @@ private fun ToggleButton(label: String, selected: Boolean, onClick: () -> Unit) 
 @Composable
 private fun DiscoverTile(
     item: DiscoverItem,
-    alreadyTracked: Boolean,
     onAdd: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -156,16 +156,11 @@ private fun DiscoverTile(
                     .aspectRatio(2f / 3f)
                     .clip(MaterialTheme.shapes.small)
             )
+            // Tapping Add removes this tile from visibleItems on the next
+            // recomposition (trackedIds picks it up), so there's no tracked
+            // state to show here — it simply won't be here anymore.
             IconButton(onClick = onAdd, modifier = Modifier.align(Alignment.TopEnd)) {
-                if (alreadyTracked) {
-                    Icon(
-                        Icons.Default.Check,
-                        contentDescription = "Already tracked",
-                        tint = MaterialTheme.colorScheme.secondary
-                    )
-                } else {
-                    Icon(Icons.Default.Add, contentDescription = "Add")
-                }
+                Icon(Icons.Default.Add, contentDescription = "Add")
             }
         }
         Text(

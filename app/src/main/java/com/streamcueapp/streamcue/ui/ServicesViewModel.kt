@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -24,6 +25,14 @@ class ServicesViewModel(application: Application) : AndroidViewModel(application
 
     val services: StateFlow<List<StreamingService>> = store.services
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val trackedShowIds: StateFlow<Set<Int>> = showDao.observeAll()
+        .map { shows -> shows.map { it.tmdbId }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    val trackedMovieIds: StateFlow<Set<Int>> = movieDao.observeAll()
+        .map { movies -> movies.map { it.tmdbId }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     private val _showPicks = MutableStateFlow<Map<Int, List<DiscoverItem>>>(emptyMap())
     val showPicks: StateFlow<Map<Int, List<DiscoverItem>>> = _showPicks
