@@ -1,5 +1,6 @@
 package com.streamcueapp.streamcue.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,7 +38,11 @@ import com.streamcueapp.streamcue.network.TmdbImage
  * slice HomeScreen started with, for movies instead of shows. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MoviesScreen(onAddMovie: () -> Unit, viewModel: MoviesViewModel = viewModel()) {
+fun MoviesScreen(
+    onAddMovie: () -> Unit,
+    onMovieClick: (Int) -> Unit,
+    viewModel: MoviesViewModel = viewModel()
+) {
     val movies by viewModel.movies.collectAsState()
 
     Scaffold(
@@ -62,7 +67,7 @@ fun MoviesScreen(onAddMovie: () -> Unit, viewModel: MoviesViewModel = viewModel(
         } else {
             LazyColumn(modifier = Modifier.padding(padding)) {
                 items(movies, key = { it.tmdbId }) { movie ->
-                    MovieRow(movie)
+                    MovieRow(movie, onClick = { onMovieClick(movie.tmdbId) })
                 }
             }
         }
@@ -70,10 +75,11 @@ fun MoviesScreen(onAddMovie: () -> Unit, viewModel: MoviesViewModel = viewModel(
 }
 
 @Composable
-private fun MovieRow(movie: TrackedMovie) {
+private fun MovieRow(movie: TrackedMovie, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

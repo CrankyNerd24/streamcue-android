@@ -9,7 +9,22 @@ interface TmdbApi {
     suspend fun searchShows(@Query("query") query: String): TmdbSearchResponse
 
     @GET("tv/{id}")
-    suspend fun showDetail(@Path("id") id: Int): TmdbShowDetail
+    suspend fun showDetail(
+        @Path("id") id: Int,
+        @Query("append_to_response") append: String = "external_ids"
+    ): TmdbShowDetail
+
+    @GET("movie/{id}")
+    suspend fun movieDetail(
+        @Path("id") id: Int,
+        @Query("append_to_response") append: String = "external_ids"
+    ): TmdbMovieDetail
+
+    @GET("tv/{id}/watch/providers")
+    suspend fun showWatchProviders(@Path("id") id: Int): TmdbWatchProviderResponse
+
+    @GET("movie/{id}/watch/providers")
+    suspend fun movieWatchProviders(@Path("id") id: Int): TmdbWatchProviderResponse
 
     @GET("search/movie")
     suspend fun searchMovies(@Query("query") query: String): TmdbMovieSearchResponse

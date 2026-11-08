@@ -17,6 +17,9 @@ interface TrackedMovieDao {
     @Query("SELECT * FROM tracked_movies WHERE tmdbId = :tmdbId LIMIT 1")
     suspend fun find(tmdbId: Int): TrackedMovie?
 
+    @Query("SELECT * FROM tracked_movies WHERE tmdbId = :tmdbId LIMIT 1")
+    fun observe(tmdbId: Int): Flow<TrackedMovie?>
+
     // Dedupes on tmdbId, same reasoning as TrackedShowDao.insert.
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(movie: TrackedMovie): Long

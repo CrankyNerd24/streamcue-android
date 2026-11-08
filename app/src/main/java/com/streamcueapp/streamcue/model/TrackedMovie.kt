@@ -49,4 +49,22 @@ data class TrackedMovie(
         get() = releaseDateEpochDay?.let {
             java.time.LocalDate.ofEpochDay(it).year.toString()
         }
+
+    /** Best single score to show in a compact space. */
+    val headlineRating: String?
+        get() = when {
+            !imdbScore.isNullOrEmpty() -> "IMDb $imdbScore"
+            (tmdbScore ?: 0.0) > 0.0 -> "TMDB " + "%.1f".format(tmdbScore)
+            else -> null
+        }
+
+    val isStale: Boolean
+        get() = lastRefreshedEpochMillis?.let {
+            System.currentTimeMillis() - it > staleAfterMillis
+        } ?: true
+
+    companion object {
+        /** How long data stays good enough to skip on a background refresh. */
+        const val staleAfterMillis = 6L * 60 * 60 * 1000
+    }
 }

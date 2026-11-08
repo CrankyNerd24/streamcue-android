@@ -20,6 +20,9 @@ interface TrackedShowDao {
     @Query("SELECT * FROM tracked_shows WHERE tmdbId = :tmdbId LIMIT 1")
     suspend fun find(tmdbId: Int): TrackedShow?
 
+    @Query("SELECT * FROM tracked_shows WHERE tmdbId = :tmdbId LIMIT 1")
+    fun observe(tmdbId: Int): Flow<TrackedShow?>
+
     // Dedupes on tmdbId the same way Library.addShow does on iOS — never
     // insert a tracked show any other way.
     @Insert(onConflict = OnConflictStrategy.IGNORE)

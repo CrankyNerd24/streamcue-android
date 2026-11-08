@@ -34,7 +34,8 @@ Where this file and that one differ, this one wins for Android.
   the watch-providers response's country keys. Every model uses explicit
   `@SerialName` per field instead, same as iOS's explicit `CodingKeys`.
 - WorkManager is the Android analog to iOS's `BGTaskScheduler` for the nightly
-  refresh (not yet wired up).
+  refresh — `NightlyRefreshWorker` walks every tracked show/movie through
+  `data/Refresh.kt` once a day, scheduled from `StreamCueApp.onCreate`.
 - DataStore (Preferences) is the Android analog to iOS's `@AppStorage`.
 - Coil 3 for poster images (Compose-native `AsyncImage`).
 - Local secrets: `local.properties` (gitignored) feeds `TMDB_TOKEN` and
@@ -54,23 +55,30 @@ Where this file and that one differ, this one wins for Android.
 - `model/`: `TrackedShow.kt` and `TrackedMovie.kt` — field-for-field Room
   ports of iOS's `TrackedShow.swift` / `TrackedMovie.swift`. `Date` fields are
   stored as epoch `Long`s (`nextAirDateEpochDay`, `addedAtEpochMillis`,
-  `lastRefreshedEpochMillis`, …). Computed-only properties on iOS
-  (`effectiveAirDate`, `scheduleSummary`, `isFreeSomewhere`, `subtitle`,
-  etc.) are mostly not stored fields — recompute them the same way iOS does,
-  from the stored data, wherever they're needed (`TrackedMovie.subtitle` is
-  the one already ported, as a Kotlin computed property). **Never read a raw
-  air-date field directly outside `TrackedShow.kt`** — same rule as iOS's
-  "never read `nextAirDate` outside `TrackedShow.swift`"; add the Android
-  equivalent of `effectiveAirDate` here if/when something needs it, don't
-  inline the arithmetic at the call site.
+  `lastRefreshedEpochMillis`, …). Computed-only properties from iOS are
+  Kotlin computed properties here, same as on iOS: `effectiveAirDateEpochDay`
+  and `scheduleSummary` (`TrackedShow`), `subtitle` (`TrackedMovie`),
+  `headlineRating` and `isStale`/`staleAfterMillis` (both). **Never read
+  `nextAirDateEpochDay` directly outside `TrackedShow.kt`** — same rule as
+  iOS's "never read `nextAirDate` outside `TrackedShow.swift`"; everything
+  else reads `effectiveAirDateEpochDay`, which applies `dayOffset`.
 - `data/`: `StreamCueDatabase` (Room singleton, two entities so far),
-  `TrackedShowDao` / `TrackedMovieDao` (`observeAll`, `find`, `insert` with
-  `OnConflictStrategy.IGNORE`, `update`, `delete`), `Converters`
-  (List<String>/List<Int> ↔ JSON via kotlinx.serialization). The database
-  uses `fallbackToDestructiveMigration` — fine pre-release, revisit once
-  there's an installed base worth preserving across a schema change.
+  `TrackedShowDao` / `TrackedMovieDao` (`observeAll`, `observe(tmdbId)`,
+  `find`, `insert` with `OnConflictStrategy.IGNORE`, `update`, `delete`),
+  `Converters` (List<String>/List<Int> ↔ JSON via kotlinx.serialization),
+  `Refresh.kt` (TMDB-only refresh for one show/movie, ported from
+  `TrackedShow.refresh()`/`TrackedMovie.refresh()` on iOS — shared by the
+  detail screens' refresh-if-stale and `NightlyRefreshWorker`; OMDb ratings
+  aren't ported, so `imdbScore`/`rottenTomatoesScore`/`metacriticScore` stay
+  unset until that lands). The database uses `fallbackToDestructiveMigration`
+  — fine pre-release, revisit once there's an installed base worth
+  preserving across a schema change.
 - `network/`: `TmdbModels.kt` (`@Serializable` response models, explicit
-  `@SerialName`, one pair of search/detail models per media type),
+  `@SerialName` — search, detail, and watch-provider shapes per media type;
+  note the detail endpoints return a `genres: [{id,name}]` array, not the
+  `genre_ids` the search/discover endpoints use, a real shape difference,
+  not just naming), `Availability.kt` (narrows a watch-providers response to
+  one region, ported from iOS's `TMDBClient.providers(path:region:)`),
   `TmdbApi.kt` (Retrofit interface), `TmdbClient.kt` (singleton
   OkHttp/Retrofit client, Bearer-token interceptor reading
   `BuildConfig.TMDB_TOKEN`, conditional logging interceptor in debug),
@@ -83,10 +91,20 @@ Where this file and that one differ, this one wins for Android.
   Discover, matching iOS `RootView`'s `TabView`) that `MainActivity` sets as
   its content, built on `navigation-compose`. Shows and Movies are real
   vertical slices: `HomeScreen`/`HomeViewModel` and `MoviesScreen`/
-  `MoviesViewModel` (empty state vs. a live list from Room), each with its
-  own Add flow pushed on top of the tab graph (`AddShowScreen`/
-  `AddShowViewModel`, `AddMovieScreen`/`AddMovieViewModel` — debounced TMDB
-  search, same shape as iOS's LookupView). Services is a real but trimmed
+  `MoviesViewModel` (empty state vs. a live list from Room, each row showing
+  a poster and tappable through to its detail screen), each with its own Add
+  flow pushed on top of the tab graph (`AddShowScreen`/`AddShowViewModel`,
+  `AddMovieScreen`/`AddMovieViewModel` — debounced TMDB search, same shape
+  as iOS's LookupView) and its own detail screen (`ShowDetailScreen`/
+  `ShowDetailViewModel`, `MovieDetailScreen`/`MovieDetailViewModel` —
+  poster, schedule/subtitle, rating, a Watched switch, where-to-watch chips
+  with a Watch now button that opens the stored JustWatch link, and a
+  delete action; refreshes via `data/Refresh.kt` if the row is stale on
+  open). Trimmed vs. iOS's `ShowDetailView`/equivalent: no household
+  sharing, no Reminders integration, no cast, no deep-linking into an
+  installed streaming app's own UI (iOS's `StreamingServices` scheme
+  matching) — Watch now always opens the JustWatch link in a browser.
+  Services is a real but trimmed
   slice: `ServicesScreen`/`ServicesViewModel` show the picked services from
   `SubscriptionsStore` (DataStore-backed, the Android analog of iOS's
   `@AppStorage(Subscriptions.key)`), and `ServicePickerScreen`/
@@ -104,8 +122,11 @@ Where this file and that one differ, this one wins for Android.
   endpoint, isn't ported. Tapping a poster never adds anything, same rule
   as iOS — the grid's add button is a separate, explicit affordance, same
   pattern as the Add Show/Movie rows.
-- `billing/`, `work/`: not yet populated — Play Billing (Premium unlock) and
-  WorkManager (nightly refresh) land here when those features are built.
+- `work/NightlyRefreshWorker.kt`: a `CoroutineWorker` that refreshes every
+  tracked show and movie once a day via `data/Refresh.kt`, one `runCatching`
+  per title so a single network failure doesn't skip the rest of the batch.
+- `billing/`: not yet populated — Play Billing (Premium unlock) lands here
+  alongside the screen that needs it.
 
 ## Colour rules (same as iOS)
 
@@ -117,15 +138,16 @@ colour rather than reusing either of these.
 ## Version 1 scope
 
 Done: the four-tab `NavHost` shell is fully real now — Shows and Movies
-backed by Room with Add Show / Add Movie TMDB search flows, a Services tab
-that picks and stores your streaming services, and a Discover tab covering
-Trending/Popular for both Shows and Movies. Still ahead: iOS's "For you"
-Discover feed and per-service suggestion strips on Services (both need
-genre aggregation from tracked titles), a free-tier cap on Services
-selections, show/movie detail screens, where-to-watch data surfaced per
-title, day-offset scheduling logic ported from iOS, air-date notifications,
-nightly background refresh (WorkManager), Play Billing for the Premium
-one-time unlock, and Play In-App Review.
+backed by Room with Add Show / Add Movie TMDB search flows and detail
+screens, a Services tab that picks and stores your streaming services, a
+Discover tab covering Trending/Popular for both Shows and Movies, and a
+nightly WorkManager refresh that keeps tracked titles' schedule/availability
+data current. Still ahead: iOS's "For you" Discover feed and per-service
+suggestion strips on Services (both need genre aggregation from tracked
+titles), a free-tier cap on Services selections, OMDb ratings (TMDB score
+only for now), air-date notifications, deep-linking Watch now into an
+installed streaming app (always opens the JustWatch link in a browser for
+now), Play Billing for the Premium one-time unlock, and Play In-App Review.
 
 App icon: reusing the existing TV-logo PNG (`streamcueapp.com`'s `icon.png`)
 as a plain raster mipmap for now rather than a true adaptive icon — that PNG

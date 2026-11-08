@@ -17,10 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
@@ -75,10 +77,16 @@ fun RootScaffold() {
             modifier = Modifier.padding(padding)
         ) {
             composable("shows") {
-                HomeScreen(onAddShow = { navController.navigate("addShow") })
+                HomeScreen(
+                    onAddShow = { navController.navigate("addShow") },
+                    onShowClick = { id -> navController.navigate("showDetail/$id") }
+                )
             }
             composable("movies") {
-                MoviesScreen(onAddMovie = { navController.navigate("addMovie") })
+                MoviesScreen(
+                    onAddMovie = { navController.navigate("addMovie") },
+                    onMovieClick = { id -> navController.navigate("movieDetail/$id") }
+                )
             }
             composable("services") {
                 ServicesScreen(onChooseServices = { navController.navigate("servicePicker") })
@@ -92,6 +100,20 @@ fun RootScaffold() {
             }
             composable("servicePicker") {
                 ServicePickerScreen(onDone = { navController.popBackStack() })
+            }
+            composable(
+                route = "showDetail/{tmdbId}",
+                arguments = listOf(navArgument("tmdbId") { type = NavType.IntType })
+            ) { entry ->
+                val tmdbId = entry.arguments?.getInt("tmdbId") ?: return@composable
+                ShowDetailScreen(tmdbId = tmdbId, onBack = { navController.popBackStack() })
+            }
+            composable(
+                route = "movieDetail/{tmdbId}",
+                arguments = listOf(navArgument("tmdbId") { type = NavType.IntType })
+            ) { entry ->
+                val tmdbId = entry.arguments?.getInt("tmdbId") ?: return@composable
+                MovieDetailScreen(tmdbId = tmdbId, onBack = { navController.popBackStack() })
             }
         }
     }
