@@ -1,5 +1,6 @@
 package com.streamcueapp.streamcue.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,7 +41,11 @@ import com.streamcueapp.streamcue.network.TmdbMovieSearchResult
 /** The Movies-tab analog of AddShowScreen — see it for the shared layout reasoning. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddMovieScreen(onDone: () -> Unit, viewModel: AddMovieViewModel = viewModel()) {
+fun AddMovieScreen(
+    onDone: () -> Unit,
+    onPreview: (Int) -> Unit,
+    viewModel: AddMovieViewModel = viewModel()
+) {
     val query by viewModel.query.collectAsState()
     val results by viewModel.results.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
@@ -88,7 +93,8 @@ fun AddMovieScreen(onDone: () -> Unit, viewModel: AddMovieViewModel = viewModel(
                         MovieResultRow(
                             result = result,
                             alreadyTracked = result.id in trackedIds,
-                            onAdd = { viewModel.addMovie(result) }
+                            onAdd = { viewModel.addMovie(result) },
+                            onClick = { onPreview(result.id) }
                         )
                     }
                 }
@@ -108,11 +114,13 @@ private fun CenteredBox(content: @Composable () -> Unit) {
 private fun MovieResultRow(
     result: TmdbMovieSearchResult,
     alreadyTracked: Boolean,
-    onAdd: () -> Unit
+    onAdd: () -> Unit,
+    onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

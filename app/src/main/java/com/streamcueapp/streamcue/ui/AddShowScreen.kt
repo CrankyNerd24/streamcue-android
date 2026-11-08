@@ -1,5 +1,6 @@
 package com.streamcueapp.streamcue.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,7 +41,11 @@ import com.streamcueapp.streamcue.network.TmdbShowSearchResult
 /** The Android analog of iOS's LookupView, scoped to TV search for now. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddShowScreen(onDone: () -> Unit, viewModel: AddShowViewModel = viewModel()) {
+fun AddShowScreen(
+    onDone: () -> Unit,
+    onPreview: (Int) -> Unit,
+    viewModel: AddShowViewModel = viewModel()
+) {
     val query by viewModel.query.collectAsState()
     val results by viewModel.results.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
@@ -88,7 +93,8 @@ fun AddShowScreen(onDone: () -> Unit, viewModel: AddShowViewModel = viewModel())
                         SearchResultRow(
                             result = result,
                             alreadyTracked = result.id in trackedIds,
-                            onAdd = { viewModel.addShow(result) }
+                            onAdd = { viewModel.addShow(result) },
+                            onClick = { onPreview(result.id) }
                         )
                     }
                 }
@@ -108,11 +114,13 @@ private fun CenteredMessage(content: @Composable () -> Unit) {
 private fun SearchResultRow(
     result: TmdbShowSearchResult,
     alreadyTracked: Boolean,
-    onAdd: () -> Unit
+    onAdd: () -> Unit,
+    onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

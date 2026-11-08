@@ -120,7 +120,11 @@ Where this file and that one differ, this one wins for Android.
   its detail screen, each with its own Add
   flow pushed on top of the tab graph (`AddShowScreen`/`AddShowViewModel`,
   `AddMovieScreen`/`AddMovieViewModel` — debounced TMDB search, same shape
-  as iOS's LookupView) and its own detail screen (`ShowDetailScreen`/
+  as iOS's LookupView). Each search result row has two separate affordances,
+  same split as Discover's tiles: tapping the row opens `TitlePreviewScreen`
+  to see detail before committing, while the "+" icon button on the row
+  still adds directly without leaving the search screen. Each tracked title
+  also has its own detail screen (`ShowDetailScreen`/
   `ShowDetailViewModel`, `MovieDetailScreen`/`MovieDetailViewModel` —
   poster, schedule/subtitle, rating, a Watched switch, where-to-watch chips
   with a Watch now button that opens the stored JustWatch link, and a

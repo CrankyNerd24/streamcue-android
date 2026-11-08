@@ -27,9 +27,9 @@ import androidx.navigation.navArgument
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
-private fun NavHostController.navigateToPreview(item: DiscoverItem) {
-    val kindSegment = if (item.kind == DiscoverKind.MOVIES) "movie" else "tv"
-    navigate("preview/$kindSegment/${item.id}")
+private fun NavHostController.navigateToPreview(kind: DiscoverKind, id: Int) {
+    val kindSegment = if (kind == DiscoverKind.MOVIES) "movie" else "tv"
+    navigate("preview/$kindSegment/$id")
 }
 
 private val tabs = listOf(
@@ -97,17 +97,23 @@ fun RootScaffold() {
             composable("services") {
                 ServicesScreen(
                     onChooseServices = { navController.navigate("servicePicker") },
-                    onPreview = { item -> navController.navigateToPreview(item) }
+                    onPreview = { item -> navController.navigateToPreview(item.kind, item.id) }
                 )
             }
             composable("discover") {
-                DiscoverScreen(onPreview = { item -> navController.navigateToPreview(item) })
+                DiscoverScreen(onPreview = { item -> navController.navigateToPreview(item.kind, item.id) })
             }
             composable("addShow") {
-                AddShowScreen(onDone = { navController.popBackStack() })
+                AddShowScreen(
+                    onDone = { navController.popBackStack() },
+                    onPreview = { id -> navController.navigateToPreview(DiscoverKind.TV, id) }
+                )
             }
             composable("addMovie") {
-                AddMovieScreen(onDone = { navController.popBackStack() })
+                AddMovieScreen(
+                    onDone = { navController.popBackStack() },
+                    onPreview = { id -> navController.navigateToPreview(DiscoverKind.MOVIES, id) }
+                )
             }
             composable("servicePicker") {
                 ServicePickerScreen(onDone = { navController.popBackStack() })

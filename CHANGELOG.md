@@ -96,3 +96,9 @@ All notable changes to this project are documented here. Format follows
   TitlePreviewSheet. Not interested records an IgnoredTitle, which now
   also filters Discover and the Services suggestion strips going forward,
   the same as iOS's visibleShows/visibleMovies hiding ignored titles
+
+- Add a preview option to the Add Show / Add Movie search results: tapping
+  a row now opens TitlePreviewScreen (poster, overview, ratings, etc.)
+  before committing, the same tap-to-preview pattern already used by
+  Discover tiles. The explicit "+" icon on each row is unchanged and still
+  adds directly without opening the preview
