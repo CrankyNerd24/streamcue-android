@@ -31,3 +31,7 @@ All notable changes to this project are documented here. Format follows
 
 - Turn the Movies tab into a real vertical slice backed by Room, with its
   own Add Movie flow searching TMDB's movie endpoint
+
+- Add a Services tab: pick your streaming services from TMDB's watch
+  providers list and store the selection with DataStore; per-service
+  suggestions and a free-tier cap are still ahead

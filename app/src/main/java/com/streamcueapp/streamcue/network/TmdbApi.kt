@@ -13,4 +13,11 @@ interface TmdbApi {
 
     @GET("search/movie")
     suspend fun searchMovies(@Query("query") query: String): TmdbMovieSearchResponse
+
+    // Region is hardcoded for now — see AppSettings.region on iOS for the
+    // setting this should eventually read from.
+    @GET("watch/providers/tv")
+    suspend fun watchProviders(
+        @Query("watch_region") region: String = "US"
+    ): TmdbProviderListResponse
 }

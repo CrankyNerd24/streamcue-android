@@ -55,3 +55,16 @@ data class TmdbMovieSearchResult(
 data class TmdbMovieSearchResponse(
     @SerialName("results") val results: List<TmdbMovieSearchResult> = emptyList(),
 )
+
+@Serializable
+data class TmdbProviderInfo(
+    @SerialName("provider_id") val providerId: Int,
+    @SerialName("provider_name") val providerName: String,
+    @SerialName("logo_path") val logoPath: String? = null,
+    @SerialName("display_priority") val displayPriority: Int = 0,
+)
+
+@Serializable
+data class TmdbProviderListResponse(
+    @SerialName("results") val results: List<TmdbProviderInfo> = emptyList(),
+)

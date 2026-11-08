@@ -81,14 +81,24 @@ Where this file and that one differ, this one wins for Android.
   matching the marketing site and iOS app — see `colors.xml`.
 - `ui/`: `RootScaffold` — the four-tab shell (Shows / Movies / Services /
   Discover, matching iOS `RootView`'s `TabView`) that `MainActivity` sets as
-  its content, built on `navigation-compose`. Shows and Movies are both real
+  its content, built on `navigation-compose`. Shows and Movies are real
   vertical slices: `HomeScreen`/`HomeViewModel` and `MoviesScreen`/
   `MoviesViewModel` (empty state vs. a live list from Room), each with its
   own Add flow pushed on top of the tab graph (`AddShowScreen`/
   `AddShowViewModel`, `AddMovieScreen`/`AddMovieViewModel` — debounced TMDB
-  search, same shape as iOS's LookupView). `ServicesScreen` and
-  `DiscoverScreen` are still placeholders — wire them up to real data the
-  same way Shows and Movies were built.
+  search, same shape as iOS's LookupView). Services is a real but trimmed
+  slice: `ServicesScreen`/`ServicesViewModel` show the picked services from
+  `SubscriptionsStore` (DataStore-backed, the Android analog of iOS's
+  `@AppStorage(Subscriptions.key)`), and `ServicePickerScreen`/
+  `ServicePickerViewModel` pick from TMDB's `/watch/providers/tv` list —
+  but the per-service "popular on your services" suggestion strips from
+  iOS's `SubscriptionsView` (genre aggregation from tracked shows/movies
+  plus a `/discover` query per service) aren't ported yet, and there's no
+  free-tier cap on selections since Premium/Billing doesn't exist on
+  Android at all yet — add one alongside that work, not before it. Region
+  is hardcoded to `"US"` in `TmdbApi.watchProviders` for now; iOS reads
+  `AppSettings.region`, which Android has no equivalent setting for yet.
+  `DiscoverScreen` is still a placeholder.
 - `billing/`, `work/`: not yet populated — Play Billing (Premium unlock) and
   WorkManager (nightly refresh) land here when those features are built.
 
@@ -101,13 +111,14 @@ colour rather than reusing either of these.
 
 ## Version 1 scope
 
-Done: the four-tab `NavHost` shell, the Shows and Movies tabs backed by
-Room, and Add Show / Add Movie flows with TMDB search. Still ahead: real
-Services and Discover tabs (currently placeholders), show/movie detail
-screens, where-to-watch data surfaced per title, day-offset scheduling logic
-ported from iOS, air-date notifications, nightly background refresh
-(WorkManager), Play Billing for the Premium one-time unlock, and Play
-In-App Review.
+Done: the four-tab `NavHost` shell; Shows and Movies tabs backed by Room
+with Add Show / Add Movie TMDB search flows; a Services tab that picks and
+stores your streaming services (no per-service suggestions yet, no
+free-tier cap). Still ahead: the Discover tab (currently a placeholder),
+per-service suggestion strips on Services, show/movie detail screens,
+where-to-watch data surfaced per title, day-offset scheduling logic ported
+from iOS, air-date notifications, nightly background refresh (WorkManager),
+Play Billing for the Premium one-time unlock, and Play In-App Review.
 
 App icon: reusing the existing TV-logo PNG (`streamcueapp.com`'s `icon.png`)
 as a plain raster mipmap for now rather than a true adaptive icon — that PNG
