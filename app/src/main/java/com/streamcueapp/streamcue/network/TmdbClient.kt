@@ -6,8 +6,8 @@ import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import retrofit2.Retrofit
-import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
 /** Bearer-token auth against TMDB's v4 API, same as the iOS client. */
 object TmdbClient {
