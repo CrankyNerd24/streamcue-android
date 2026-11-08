@@ -51,36 +51,44 @@ Where this file and that one differ, this one wins for Android.
 
 ## Layout (`app/src/main/java/com/streamcueapp/streamcue`)
 
-- `model/`: `TrackedShow.kt` — a field-for-field Room port of iOS's
-  `TrackedShow.swift`. `Date` fields are stored as epoch `Long`s
-  (`nextAirDateEpochDay`, `addedAtEpochMillis`, `lastRefreshedEpochMillis`).
-  Computed-only properties on iOS (`effectiveAirDate`, `scheduleSummary`,
-  `isFreeSomewhere`, etc.) are not stored fields here — recompute them the
-  same way iOS does, from `dayOffset` and the stored data, wherever they're
-  needed. **Never read a raw air-date field directly outside this file** —
-  same rule as iOS's "never read `nextAirDate` outside `TrackedShow.swift`";
-  add the Android equivalent of `effectiveAirDate` here if/when something
-  needs it, don't inline the arithmetic at the call site.
-- `data/`: `StreamCueDatabase` (Room singleton), `TrackedShowDao` (`observeAll`,
-  `find`, `insert` with `OnConflictStrategy.IGNORE`, `update`, `delete`),
-  `Converters` (List<String>/List<Int> ↔ JSON via kotlinx.serialization).
+- `model/`: `TrackedShow.kt` and `TrackedMovie.kt` — field-for-field Room
+  ports of iOS's `TrackedShow.swift` / `TrackedMovie.swift`. `Date` fields are
+  stored as epoch `Long`s (`nextAirDateEpochDay`, `addedAtEpochMillis`,
+  `lastRefreshedEpochMillis`, …). Computed-only properties on iOS
+  (`effectiveAirDate`, `scheduleSummary`, `isFreeSomewhere`, `subtitle`,
+  etc.) are mostly not stored fields — recompute them the same way iOS does,
+  from the stored data, wherever they're needed (`TrackedMovie.subtitle` is
+  the one already ported, as a Kotlin computed property). **Never read a raw
+  air-date field directly outside `TrackedShow.kt`** — same rule as iOS's
+  "never read `nextAirDate` outside `TrackedShow.swift`"; add the Android
+  equivalent of `effectiveAirDate` here if/when something needs it, don't
+  inline the arithmetic at the call site.
+- `data/`: `StreamCueDatabase` (Room singleton, two entities so far),
+  `TrackedShowDao` / `TrackedMovieDao` (`observeAll`, `find`, `insert` with
+  `OnConflictStrategy.IGNORE`, `update`, `delete`), `Converters`
+  (List<String>/List<Int> ↔ JSON via kotlinx.serialization). The database
+  uses `fallbackToDestructiveMigration` — fine pre-release, revisit once
+  there's an installed base worth preserving across a schema change.
 - `network/`: `TmdbModels.kt` (`@Serializable` response models, explicit
-  `@SerialName`), `TmdbApi.kt` (Retrofit interface), `TmdbClient.kt` (singleton
-  OkHttp/Retrofit client, Bearer-token interceptor reading `BuildConfig.TMDB_TOKEN`,
-  conditional logging interceptor in debug).
+  `@SerialName`, one pair of search/detail models per media type),
+  `TmdbApi.kt` (Retrofit interface), `TmdbClient.kt` (singleton
+  OkHttp/Retrofit client, Bearer-token interceptor reading
+  `BuildConfig.TMDB_TOKEN`, conditional logging interceptor in debug),
+  `TmdbImage.kt` (poster URL helper, same `image.tmdb.org/t/p/wNNN` scheme as
+  iOS's `TMDB.swift` image helpers).
 - `ui/theme/Theme.kt`: dark-only Compose `MaterialTheme` (matches iOS's
   `.preferredColorScheme(.dark)`) built from named brand-colour constants
   matching the marketing site and iOS app — see `colors.xml`.
 - `ui/`: `RootScaffold` — the four-tab shell (Shows / Movies / Services /
   Discover, matching iOS `RootView`'s `TabView`) that `MainActivity` sets as
-  its content, built on `navigation-compose`. `HomeScreen` + `HomeViewModel`
-  back the Shows tab (the first real vertical slice — empty state vs. a live
-  list from Room) and the Add Show flow (`AddShowScreen` + `AddShowViewModel`,
-  a debounced TMDB search pushed on top of the tab graph, same as iOS's
-  LookupView). `MoviesScreen`, `ServicesScreen`, `DiscoverScreen` are
-  placeholders — wire them up to real data the same way Shows was built.
-- `network/TmdbImage.kt`: poster URL helper (`image.tmdb.org/t/p/wNNN`), same
-  scheme as iOS's `TMDB.swift` image helpers.
+  its content, built on `navigation-compose`. Shows and Movies are both real
+  vertical slices: `HomeScreen`/`HomeViewModel` and `MoviesScreen`/
+  `MoviesViewModel` (empty state vs. a live list from Room), each with its
+  own Add flow pushed on top of the tab graph (`AddShowScreen`/
+  `AddShowViewModel`, `AddMovieScreen`/`AddMovieViewModel` — debounced TMDB
+  search, same shape as iOS's LookupView). `ServicesScreen` and
+  `DiscoverScreen` are still placeholders — wire them up to real data the
+  same way Shows and Movies were built.
 - `billing/`, `work/`: not yet populated — Play Billing (Premium unlock) and
   WorkManager (nightly refresh) land here when those features are built.
 
@@ -93,12 +101,13 @@ colour rather than reusing either of these.
 
 ## Version 1 scope
 
-Done: the four-tab `NavHost` shell, the Shows tab backed by Room, and an Add
-Show flow with TMDB search. Still ahead: real Movies/Services/Discover tabs
-(currently placeholders), show detail screen, where-to-watch data surfaced
-per show, day-offset scheduling logic ported from iOS, air-date
-notifications, nightly background refresh (WorkManager), Play Billing for
-the Premium one-time unlock, and Play In-App Review.
+Done: the four-tab `NavHost` shell, the Shows and Movies tabs backed by
+Room, and Add Show / Add Movie flows with TMDB search. Still ahead: real
+Services and Discover tabs (currently placeholders), show/movie detail
+screens, where-to-watch data surfaced per title, day-offset scheduling logic
+ported from iOS, air-date notifications, nightly background refresh
+(WorkManager), Play Billing for the Premium one-time unlock, and Play
+In-App Review.
 
 App icon: reusing the existing TV-logo PNG (`streamcueapp.com`'s `icon.png`)
 as a plain raster mipmap for now rather than a true adaptive icon — that PNG

@@ -24,3 +24,10 @@ All notable changes to this project are documented here. Format follows
 - Add the four-tab bottom nav shell (Shows, Movies, Services, Discover)
   matching the iOS app's tab bar, with Movies/Services/Discover as
   placeholders until their real data lands
+
+- Add the `TrackedMovie` Room entity and DAO, ported field for field from
+  the iOS SwiftData model, and bump the database to fall back to a
+  destructive migration on a schema change (fine pre-release)
+
+- Turn the Movies tab into a real vertical slice backed by Room, with its
+  own Add Movie flow searching TMDB's movie endpoint

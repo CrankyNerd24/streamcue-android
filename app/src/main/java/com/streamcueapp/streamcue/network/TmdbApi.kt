@@ -10,4 +10,7 @@ interface TmdbApi {
 
     @GET("tv/{id}")
     suspend fun showDetail(@Path("id") id: Int): TmdbShowDetail
+
+    @GET("search/movie")
+    suspend fun searchMovies(@Query("query") query: String): TmdbMovieSearchResponse
 }

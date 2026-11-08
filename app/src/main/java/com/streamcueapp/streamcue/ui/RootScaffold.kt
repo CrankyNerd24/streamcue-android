@@ -75,11 +75,16 @@ fun RootScaffold() {
             composable("shows") {
                 HomeScreen(onAddShow = { navController.navigate("addShow") })
             }
-            composable("movies") { MoviesScreen() }
+            composable("movies") {
+                MoviesScreen(onAddMovie = { navController.navigate("addMovie") })
+            }
             composable("services") { ServicesScreen() }
             composable("discover") { DiscoverScreen() }
             composable("addShow") {
                 AddShowScreen(onDone = { navController.popBackStack() })
+            }
+            composable("addMovie") {
+                AddMovieScreen(onDone = { navController.popBackStack() })
             }
         }
     }

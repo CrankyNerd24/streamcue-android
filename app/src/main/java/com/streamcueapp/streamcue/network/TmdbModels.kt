@@ -37,3 +37,21 @@ data class TmdbShowDetail(
     @SerialName("vote_average") val voteAverage: Double? = null,
     @SerialName("vote_count") val voteCount: Int? = null,
 )
+
+@Serializable
+data class TmdbMovieSearchResult(
+    @SerialName("id") val id: Int,
+    @SerialName("title") val title: String,
+    @SerialName("poster_path") val posterPath: String? = null,
+    @SerialName("overview") val overview: String = "",
+    @SerialName("genre_ids") val genreIds: List<Int> = emptyList(),
+    @SerialName("release_date") val releaseDate: String? = null,
+) {
+    val year: String?
+        get() = releaseDate?.takeIf { it.length >= 4 }?.substring(0, 4)
+}
+
+@Serializable
+data class TmdbMovieSearchResponse(
+    @SerialName("results") val results: List<TmdbMovieSearchResult> = emptyList(),
+)
