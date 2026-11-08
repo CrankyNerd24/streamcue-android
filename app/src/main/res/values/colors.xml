@@ -1,0 +1,9 @@
+<resources>
+    <!-- Same palette as the marketing site and iOS app's accent color. -->
+    <color name="bg">#121216</color>
+    <color name="bg_2">#1A1A20</color>
+    <color name="accent">#FF9F43</color>
+    <color name="free">#3DDC84</color>
+    <color name="text_primary">#F2EFE9</color>
+    <color name="text_muted">#A5A2AD</color>
+</resources>

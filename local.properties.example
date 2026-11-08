@@ -1,0 +1,10 @@
+# Copy this file to local.properties (gitignored) and fill in real values.
+# Mirrors the iOS app's Secrets.swift / Secrets.example.swift.
+
+sdk.dir=/path/to/your/Android/sdk
+
+# TMDB v4 read token — https://www.themoviedb.org/settings/api
+TMDB_TOKEN=PASTE_YOUR_TMDB_V4_READ_TOKEN_HERE
+
+# Optional: OMDb API key — https://www.omdbapi.com/apikey.aspx
+OMDB_KEY=PASTE_YOUR_OMDB_KEY_HERE
