@@ -13,14 +13,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
  * A collapsible list-section header (title, count, chevron) — the Android
  * analog of iOS's tappable section headers on the Shows and Movies tabs
  * (ContentView.header/readySection, WatchlistView.section/watchedSection).
- * Accented is used only for "Airing today", same rule as iOS's Theme.tonight
- * there — colour means something, see CLAUDE.md.
+ * Accented is used for "Airing today" (primary/orange) and "Ready to
+ * watch" (amber, passed via `accentColor`) — colour means something, see
+ * CLAUDE.md.
  */
 @Composable
 fun SectionHeader(
@@ -28,9 +30,13 @@ fun SectionHeader(
     count: Int,
     expanded: Boolean,
     onClick: () -> Unit,
-    accented: Boolean = false
+    accented: Boolean = false,
+    accentColor: Color? = null
 ) {
-    val color = if (accented) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val color = when {
+        accented -> accentColor ?: MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()

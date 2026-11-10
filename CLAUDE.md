@@ -57,30 +57,48 @@ Where this file and that one differ, this one wins for Android.
   is a field-for-field port of iOS's `IgnoredTitle.swift` ("Not interested"
   records) — `kind` is a `DiscoverKind` name string rather than iOS's
   `MediaKind` raw value, and is part of the primary key since TV and movie
-  id spaces can collide. `Date` fields are
+  id spaces can collide. `PendingEpisode.kt` is a field-for-field port of
+  iOS's `PendingEpisode.swift` — an aired, not-yet-actioned episode; `key`
+  ("showId-season-episode") is the primary key directly rather than a
+  separate id plus a uniqueness check, since Room enforces it for real and
+  there's no CloudKit-style multi-device merge to design around. `Date`
+  fields are
   stored as epoch `Long`s (`nextAirDateEpochDay`, `addedAtEpochMillis`,
   `lastRefreshedEpochMillis`, …). Computed-only properties from iOS are
-  Kotlin computed properties here, same as on iOS: `effectiveAirDateEpochDay`
-  and `scheduleSummary` (`TrackedShow`), `subtitle` (`TrackedMovie`),
-  `headlineRating` and `isStale`/`staleAfterMillis` (both). **Never read
+  Kotlin computed properties here, same as on iOS: `effectiveAirDateEpochDay`,
+  `scheduleSummary`, and `nextEpisodeSeasonAndNumber` (`TrackedShow`),
+  `subtitle` (`TrackedMovie`),
+  `headlineRating` and `isStale`/`staleAfterMillis` (both), `label` and
+  `airedSummary` (`PendingEpisode`). **Never read
   `nextAirDateEpochDay` directly outside `TrackedShow.kt`** — same rule as
   iOS's "never read `nextAirDate` outside `TrackedShow.swift`"; everything
   else reads `effectiveAirDateEpochDay`, which applies `dayOffset`.
-- `data/`: `StreamCueDatabase` (Room singleton, three entities so far),
+- `data/`: `StreamCueDatabase` (Room singleton, four entities so far),
   `TrackedShowDao` / `TrackedMovieDao` (`observeAll`, `observe(tmdbId)`,
   `find`, `insert` with `OnConflictStrategy.IGNORE`, `update`, `delete`),
   `IgnoredTitleDao` (`observeAll`, `insert` — see `model/IgnoredTitle.kt`
-  below), `Converters` (List<String>/List<Int> ↔ JSON via kotlinx.serialization),
+  below), `PendingEpisodeDao` (`observePending` — outstanding only, grouped
+  by show; `observeAll` — every record, for the actioned-key check;
+  `observeForShow`/`forShow`, `find`, `insert` with
+  `OnConflictStrategy.IGNORE`, `update`, `deleteAllForShow`,
+  `deleteOlderThan`), `Converters` (List<String>/List<Int> ↔ JSON via kotlinx.serialization),
   `AppPreferences.kt` (the one shared `Context.appDataStore` — Preferences
   DataStore enforces a single instance per file, so `SubscriptionsStore`
   and `SectionCollapseStore` both read this rather than declaring their
   own), `SectionCollapseStore.kt` (Shows/Movies list-section collapse
-  state — see the `ui/` entry below), `Refresh.kt` (TMDB-only refresh for
+  state, plus `watchedExpanded`/`readyExpanded` — see the `ui/` entry
+  below), `Refresh.kt` (TMDB-only refresh for
   one show/movie, ported from
   `TrackedShow.refresh()`/`TrackedMovie.refresh()` on iOS — shared by the
   detail screens' refresh-if-stale and `NightlyRefreshWorker`; OMDb ratings
   aren't ported, so `imdbScore`/`rottenTomatoesScore`/`metacriticScore` stay
-  unset until that lands). The database uses `fallbackToDestructiveMigration`
+  unset until that lands), `EpisodeSync.kt` (ported from iOS's
+  `EpisodeSync` — `sync(episodeDao, showDao, show)` fetches the show's
+  current season and records anything aired in the last 30 days as a
+  `PendingEpisode`, un-marking the show watched if that leaves something
+  outstanding; `prune(episodeDao)` drops anything aired more than 60 days
+  ago. Always called right after `Refresh.show` — see the `ui/` entry
+  below and `NightlyRefreshWorker` — never on its own). The database uses `fallbackToDestructiveMigration`
   — fine pre-release, revisit once there's an installed base worth
   preserving across a schema change.
 - `network/`: `TmdbModels.kt` (`@Serializable` response models, explicit
@@ -103,21 +121,27 @@ Where this file and that one differ, this one wins for Android.
   vertical slices: `HomeScreen`/`HomeViewModel` and `MoviesScreen`/
   `MoviesViewModel` group their list into collapsible `SectionHeader`
   groups, the Android analog of iOS's `ContentView`/`WatchlistView`
-  section headers — Shows into Airing today (accented) / Airing next / No
-  date announced / Finished (`groupShows`, mirroring `ContentView`'s
-  `dated`/`airingToday`/`upcoming`/`waiting`/`finished`, minus the Ready-
-  to-watch exclusion, since no such section exists here); Movies into Free
-  to watch (accented) / On a subscription / Rent or buy / Not streaming
-  yet from the unwatched list (`groupMovies`, mirroring `WatchlistView`'s
-  `group(_:)` over `MovieAvailability.allCases`), then Watched last. Every
-  section defaults expanded and persists collapse state by exclusion
+  section headers — Shows into Airing today (accented) / Ready to watch
+  (amber, actionable) / Airing next / No date announced / Finished
+  (`groupShows`, mirroring `ContentView`'s
+  `dated`/`airingToday`/`upcoming`/`waiting`/`finished`, Ready-to-watch
+  exclusion included — a show already fully represented there drops out of
+  "dated" so it isn't double-listed); Movies into Free to watch (accented)
+  / On a subscription / Rent or buy / Not streaming yet from the unwatched
+  list (`groupMovies`, mirroring `WatchlistView`'s `group(_:)` over
+  `MovieAvailability.allCases`), then Watched last. Every section defaults
+  expanded and persists collapse state by exclusion
   (`SectionCollapseStore.collapsed`), except Watched, which defaults
   collapsed via its own flag (`watchedExpanded`) — iOS uses the same two
   mechanisms (`@AppStorage("collapsedShowSections")` vs.
-  `@AppStorage("watchedExpanded")`), not one. No Ready-to-watch section
-  and no Watch Now shortcut yet — both ride iOS's `PendingEpisode`/
-  `EpisodeSync`, not ported (see below). Each row is tappable through to
-  its detail screen, each with its own Add
+  `@AppStorage("watchedExpanded")`), not one. Ready to watch has its own
+  default-expanded flag too (`readyExpanded`, iOS's
+  `@AppStorage("readyExpanded")`). Pulling to refresh on the Shows tab
+  (`HomeViewModel.refreshAll`, Material3 `PullToRefreshBox`) re-fetches
+  every show and runs `EpisodeSync.sync` on each, the Android analog of
+  iOS's `ContentView.refreshAll()`. No Watch Now shortcut on Ready to watch
+  cards yet — that rides Premium/`StreamingServices`, not wired here. Each
+  row is tappable through to its detail screen, each with its own Add
   flow pushed on top of the tab graph (`AddShowScreen`/`AddShowViewModel`,
   `AddMovieScreen`/`AddMovieViewModel` — debounced TMDB search, same shape
   as iOS's LookupView). Each search result row has two separate affordances,
@@ -128,10 +152,16 @@ Where this file and that one differ, this one wins for Android.
   `ShowDetailViewModel`, `MovieDetailScreen`/`MovieDetailViewModel` —
   poster, schedule/subtitle, rating, a Watched switch, where-to-watch chips
   with a Watch now button that opens the stored JustWatch link, and a
-  delete action; refreshes via `data/Refresh.kt` if the row is stale on
-  open). No Not-interested action on these screens — "Not interested" only
-  makes sense for a title you haven't tracked yet (see `TitlePreviewScreen`
-  below); once it's tracked, delete is the equivalent. Trimmed vs. iOS's
+  delete action that also clears the show's recorded episodes; refreshes
+  via `data/Refresh.kt` if the row is stale on open, then runs
+  `EpisodeSync.sync`). The show detail screen's "Episodes" section is the
+  real recorded history — `PendingEpisode` rows for this show, newest
+  first, each with a Watched/Undo action (`EpisodeStatusRow`, mirroring
+  iOS's own) — not a live TMDB fetch of the whole season, so (like iOS) it
+  never previews unaired future episodes. No Not-interested action on
+  these screens — "Not interested" only makes sense for a title you
+  haven't tracked yet (see `TitlePreviewScreen` below); once it's tracked,
+  delete is the equivalent. Trimmed vs. iOS's
   `ShowDetailView`/equivalent: no household
   sharing, no Reminders integration, no cast, no deep-linking into an
   installed streaming app's own UI (iOS's `StreamingServices` scheme
@@ -177,17 +207,16 @@ Where this file and that one differ, this one wins for Android.
   composable used by both detail screens and the preview screen, rather
   than three copies of the same chip.
   `ShowDetailScreen` also has a day-offset control (stepper + tap-to-edit
-  dialog, −7 to 365 days, same range as iOS) and a read-only "Episodes"
-  list for the show's current season — fetched live from TMDB's
-  `/tv/{id}/season/{n}`, not stored. This is a deliberately trimmed analog
-  of iOS's "Recent episodes": no per-episode watched/dismissed state, no
-  undo, no cross-session history. iOS's real episode tracking is
-  `EpisodeSync` + `PendingEpisode`, a whole separate sync subsystem that
-  writes individual episode records as they air and feeds the Ready-to-
-  watch section — that hasn't been ported at all (StreamCue Android has no
-  Ready-to-watch section yet either). Build that properly, as its own
-  entity + sync logic, rather than bolting watched-state onto this
-  read-only list. Both detail screens are laid out as `DetailSection.kt`
+  dialog, −7 to 365 days, same range as iOS) and a real, persisted
+  "Episodes" list — `PendingEpisode` rows recorded for this show by
+  `EpisodeSync`, newest first, each with a Watched/Undo action
+  (`EpisodeStatusRow`, mirroring iOS's own). Not a live fetch of the whole
+  current season, so — like iOS's actual "Recent episodes" — it never
+  previews an episode that hasn't aired yet. Toggling an episode re-derives
+  the show's `watched` flag the same way the Shows tab's Ready to watch
+  section does: caught up once nothing recorded for the show is still
+  outstanding (`ShowDetailViewModel.setEpisodeWatched`, mirroring iOS's
+  `ShowDetailView.setWatched`). Both detail screens are laid out as `DetailSection.kt`
   groups — a shared titled/collapsible composable standing in for iOS's
   grouped `List`/`Section` style. Episode synopsis is folded into the
   Schedule section's content rather than getting its own nested disclosure
@@ -200,7 +229,9 @@ Where this file and that one differ, this one wins for Android.
   pieces between the two detail screens.
 - `work/NightlyRefreshWorker.kt`: a `CoroutineWorker` that refreshes every
   tracked show and movie once a day via `data/Refresh.kt`, one `runCatching`
-  per title so a single network failure doesn't skip the rest of the batch.
+  per title so a single network failure doesn't skip the rest of the batch
+  — then runs `EpisodeSync.sync` on each refreshed show and
+  `EpisodeSync.prune` once at the end.
 - `billing/`: not yet populated — Play Billing (Premium unlock) lands here
   alongside the screen that needs it.
 
@@ -208,26 +239,29 @@ Where this file and that one differ, this one wins for Android.
 
 Colour means something — don't repurpose these. Orange (`StreamCueAccent`) is
 only ever "airing today". Green (`StreamCueFree`) is only ever "free to
-watch". Keep any future "aired, not actioned" amber state as its own named
-colour rather than reusing either of these.
+watch"/"watched". Amber (`StreamCueUnwatched`) is only ever "aired, not
+actioned" — the Ready to watch section and episode rows. Don't reuse any of
+these for anything else.
 
 ## Version 1 scope
 
 Done: the four-tab `NavHost` shell is fully real now — Shows and Movies
 backed by Room, each grouped into collapsible sections matching iOS's own
 grouping, with Add Show / Add Movie TMDB search flows and detail screens
-(the Shows one has a day-offset control and a read-only current-season
-episode list), a Services tab that picks your streaming services and shows
-per-service suggestion strips, a Discover tab covering For you / Trending /
-Popular for both Shows and Movies, and a nightly WorkManager refresh that
-keeps tracked titles' schedule/availability data current. Still ahead: real
-per-episode watched/dismissed tracking (iOS's EpisodeSync/PendingEpisode —
-a whole separate sync subsystem, not just a read-only list) and a
-Ready-to-watch section built on it, a free-tier cap on Services selections,
-OMDb ratings (TMDB score only for now), air-date notifications,
-deep-linking Watch now into an installed streaming app (always opens the
-JustWatch link in a browser for now), Play Billing for the Premium
-one-time unlock, and Play In-App Review.
+(the Shows one has a day-offset control and a real, persisted episode
+history with Watched/Undo), a Ready to watch section on the Shows tab fed
+by the ported EpisodeSync/PendingEpisode system, a Services tab that picks
+your streaming services and shows per-service suggestion strips, a
+Discover tab covering For you / Trending / Popular for both Shows and
+Movies, and a nightly WorkManager refresh (plus pull-to-refresh on the
+Shows tab) that keeps tracked titles' schedule/availability data and
+recorded episodes current. Still ahead: Reminders integration, household
+sharing (both need infrastructure — local notifications/a backend — not
+built yet), a free-tier cap on Services selections, OMDb ratings (TMDB
+score only for now), cast, a custom Watch-on override, air-date
+notifications, deep-linking Watch now into an installed streaming app
+(always opens the JustWatch link in a browser for now), Play Billing for
+the Premium one-time unlock, and Play In-App Review.
 
 App icon: reusing the existing TV-logo PNG (`streamcueapp.com`'s `icon.png`)
 as a plain raster mipmap for now rather than a true adaptive icon — that PNG

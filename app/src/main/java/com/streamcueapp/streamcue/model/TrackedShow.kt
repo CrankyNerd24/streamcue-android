@@ -91,6 +91,19 @@ data class TrackedShow(
             else -> "−${-dayOffset} days"
         }
 
+    /** Recovers the next episode's season/number from `nextEpisodeLabel`
+     * ("S05E10 · Title", TmdbEpisode.label's own format) instead of storing
+     * them separately — used to check whether a specific upcoming episode,
+     * not just any episode sharing its air date, has already been recorded
+     * as a PendingEpisode. Mirrors iOS's Scanner-based parse. */
+    val nextEpisodeSeasonAndNumber: Pair<Int, Int>?
+        get() {
+            val label = nextEpisodeLabel ?: return null
+            val match = Regex("^S(\\d+)E(\\d+)").find(label) ?: return null
+            val (season, episode) = match.destructured
+            return season.toInt() to episode.toInt()
+        }
+
     companion object {
         /** How long data stays good enough to skip on a background refresh. */
         const val staleAfterMillis = 6L * 60 * 60 * 1000

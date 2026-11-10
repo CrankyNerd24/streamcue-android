@@ -9,6 +9,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.streamcueapp.streamcue.StreamCueApp
+import com.streamcueapp.streamcue.data.EpisodeSync
 import com.streamcueapp.streamcue.data.Refresh
 import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
@@ -27,10 +28,16 @@ class NightlyRefreshWorker(
         val app = applicationContext as StreamCueApp
         val showDao = app.database.trackedShowDao()
         val movieDao = app.database.trackedMovieDao()
+        val episodeDao = app.database.pendingEpisodeDao()
 
         showDao.observeAll().first().forEach { show ->
-            runCatching { Refresh.show(showDao, show) }
+            runCatching {
+                Refresh.show(showDao, show)
+                val refreshed = showDao.find(show.tmdbId) ?: return@runCatching
+                EpisodeSync.sync(episodeDao, showDao, refreshed)
+            }
         }
+        EpisodeSync.prune(episodeDao)
         movieDao.observeAll().first().forEach { movie ->
             runCatching { Refresh.movie(movieDao, movie) }
         }

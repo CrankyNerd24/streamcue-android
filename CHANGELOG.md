@@ -102,3 +102,29 @@ All notable changes to this project are documented here. Format follows
   before committing, the same tap-to-preview pattern already used by
   Discover tiles. The explicit "+" icon on each row is unchanged and still
   adds directly without opening the preview
+
+- Port real per-episode watched/dismissed tracking to the Shows tab and
+  show detail screen — the `PendingEpisode`/`EpisodeSync` system from iOS,
+  the biggest deferred piece until now:
+  - A new `PendingEpisode` Room entity and `EpisodeSync` object record any
+    episode a tracked show's current season has aired in the last 30 days,
+    run right after a show is refreshed (detail screen open, nightly
+    WorkManager job, and a new pull-to-refresh on the Shows tab itself)
+  - The Shows tab gains a "Ready to watch" section (amber, between Airing
+    today and Airing next, matching iOS's colour and ordering) listing
+    every outstanding episode across all shows, newest-show-first. Each row
+    can be marked watched or dismissed directly, with a Snackbar "Undo"; a
+    show with nothing else outstanding gets auto-marked watched, and a
+    newly aired episode un-marks a show that was already caught up — same
+    derivation iOS uses. A show with a confirmed air date already fully
+    represented in Ready to watch no longer also shows in Airing
+    today/next, avoiding a double listing
+  - The show detail screen's "Episodes" section is now the real recorded
+    history (persisted, with Watched/Undo per row) instead of a read-only
+    live fetch of the whole current season — this also means it no longer
+    previews unaired future episodes, since iOS's own Recent episodes list
+    never did either
+  - Deleting a tracked show now also clears its recorded episodes
+  - Still trimmed vs. iOS: no Reminders integration, no household sharing,
+    no review-prompt tie-in — those ride infrastructure (notifications,
+    a backend, StoreKit-equivalent gating) not ported yet

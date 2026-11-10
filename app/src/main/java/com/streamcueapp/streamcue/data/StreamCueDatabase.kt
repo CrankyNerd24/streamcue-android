@@ -6,12 +6,13 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.streamcueapp.streamcue.model.IgnoredTitle
+import com.streamcueapp.streamcue.model.PendingEpisode
 import com.streamcueapp.streamcue.model.TrackedMovie
 import com.streamcueapp.streamcue.model.TrackedShow
 
 @Database(
-    entities = [TrackedShow::class, TrackedMovie::class, IgnoredTitle::class],
-    version = 3,
+    entities = [TrackedShow::class, TrackedMovie::class, IgnoredTitle::class, PendingEpisode::class],
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -19,6 +20,7 @@ abstract class StreamCueDatabase : RoomDatabase() {
     abstract fun trackedShowDao(): TrackedShowDao
     abstract fun trackedMovieDao(): TrackedMovieDao
     abstract fun ignoredTitleDao(): IgnoredTitleDao
+    abstract fun pendingEpisodeDao(): PendingEpisodeDao
 
     companion object {
         @Volatile private var instance: StreamCueDatabase? = null

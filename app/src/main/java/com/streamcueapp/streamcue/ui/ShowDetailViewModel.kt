@@ -4,25 +4,27 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.streamcueapp.streamcue.StreamCueApp
+import com.streamcueapp.streamcue.data.EpisodeSync
 import com.streamcueapp.streamcue.data.Refresh
+import com.streamcueapp.streamcue.model.PendingEpisode
 import com.streamcueapp.streamcue.model.TrackedShow
-import com.streamcueapp.streamcue.network.TmdbClient
-import com.streamcueapp.streamcue.network.TmdbEpisode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class ShowDetailViewModel(application: Application) : AndroidViewModel(application) {
     private val dao = (application as StreamCueApp).database.trackedShowDao()
+    private val episodeDao = (application as StreamCueApp).database.pendingEpisodeDao()
 
     private val _show = MutableStateFlow<TrackedShow?>(null)
     val show: StateFlow<TrackedShow?> = _show
 
-    private val _episodes = MutableStateFlow<List<TmdbEpisode>>(emptyList())
-    val episodes: StateFlow<List<TmdbEpisode>> = _episodes
+    // The persisted, newest-first "Recent episodes" list — the Android
+    // analog of iOS's @Query over PendingEpisode, filtered to this show.
+    private val _episodes = MutableStateFlow<List<PendingEpisode>>(emptyList())
+    val episodes: StateFlow<List<PendingEpisode>> = _episodes
 
     private var loadedId: Int? = null
-    private var loadedSeasonKey: String? = null
 
     fun load(tmdbId: Int) {
         if (loadedId == tmdbId) return
@@ -32,34 +34,40 @@ class ShowDetailViewModel(application: Application) : AndroidViewModel(applicati
                 _show.value = current
                 if (current == null) return@collect
                 if (current.isStale) {
-                    runCatching { Refresh.show(dao, current) }
-                }
-                val season = current.lastAiredSeason
-                val seasonKey = "${current.tmdbId}-$season"
-                if (season != null && loadedSeasonKey != seasonKey) {
-                    loadedSeasonKey = seasonKey
-                    loadEpisodes(current.tmdbId, season)
+                    runCatching {
+                        Refresh.show(dao, current)
+                        val refreshed = dao.find(current.tmdbId) ?: return@runCatching
+                        EpisodeSync.sync(episodeDao, dao, refreshed)
+                    }
                 }
             }
         }
-    }
-
-    // Read-only, fetched straight from TMDB rather than stored — the
-    // Android analog of iOS's "Recent episodes" list is trimmed: no
-    // per-episode watched/dismissed tracking (that's iOS's EpisodeSync, a
-    // separate sync subsystem not ported — see CLAUDE.md), just the
-    // season's episode list for reference.
-    private fun loadEpisodes(tmdbId: Int, season: Int) {
         viewModelScope.launch {
-            _episodes.value = runCatching {
-                TmdbClient.api.seasonDetail(tmdbId, season).episodes
-            }.getOrDefault(emptyList())
+            episodeDao.observeForShow(tmdbId).collect { _episodes.value = it }
         }
     }
 
     fun setWatched(watched: Boolean) {
         val current = _show.value ?: return
         viewModelScope.launch { dao.update(current.copy(watched = watched)) }
+    }
+
+    /** Marks an outstanding episode watched, or undoes a watched or
+     * dismissed one, then re-derives the show's caught-up flag the same
+     * way the Shows tab does: caught up once nothing it aired is still
+     * outstanding. Mirrors iOS's ShowDetailView.setWatched. */
+    fun setEpisodeWatched(episode: PendingEpisode, watched: Boolean) {
+        viewModelScope.launch {
+            episodeDao.update(episode.copy(watched = watched, dismissed = false))
+            val current = dao.find(episode.showId) ?: return@launch
+            val siblings = episodeDao.forShow(episode.showId)
+            val outstanding = !watched || siblings.any {
+                it.key != episode.key && !it.watched && !it.dismissed
+            }
+            if (current.watched != !outstanding) {
+                dao.update(current.copy(watched = !outstanding))
+            }
+        }
     }
 
     fun setDayOffset(newOffset: Int) {
@@ -70,6 +78,9 @@ class ShowDetailViewModel(application: Application) : AndroidViewModel(applicati
 
     fun delete() {
         val current = _show.value ?: return
-        viewModelScope.launch { dao.delete(current) }
+        viewModelScope.launch {
+            episodeDao.deleteAllForShow(current.tmdbId)
+            dao.delete(current)
+        }
     }
 }

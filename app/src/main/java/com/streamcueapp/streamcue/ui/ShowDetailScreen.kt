@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
@@ -45,11 +46,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
+import com.streamcueapp.streamcue.model.PendingEpisode
 import com.streamcueapp.streamcue.model.TrackedShow
-import com.streamcueapp.streamcue.network.TmdbEpisode
 import com.streamcueapp.streamcue.network.TmdbImage
 
 /**
@@ -58,10 +60,11 @@ import com.streamcueapp.streamcue.network.TmdbImage
  * Episode synopsis and Episodes mirror iOS's actual DisclosureGroup/
  * "Recent episodes" collapse (both default collapsed, same as iOS);
  * Ratings and Where to watch are collapsible too, for a shorter screen,
- * but default open since iOS always shows them. Trimmed vs. iOS: no
- * household sharing, no reminders, no cast, no custom Watch-on override,
- * no per-episode watched/dismissed tracking (that's iOS's EpisodeSync, a
- * separate sync subsystem) — see CLAUDE.md for what's still ahead.
+ * but default open since iOS always shows them. Episodes is now backed by
+ * the real PendingEpisode/EpisodeSync system (see data/EpisodeSync.kt),
+ * each row with a watched/undo action, same as iOS's EpisodeStatusRow.
+ * Still trimmed vs. iOS: no household sharing, no reminders, no cast, no
+ * custom Watch-on override — see CLAUDE.md for what's still ahead.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,7 +111,8 @@ fun ShowDetailScreen(
                 episodes = episodes,
                 modifier = Modifier.padding(padding),
                 onWatchedChange = viewModel::setWatched,
-                onDayOffsetChange = viewModel::setDayOffset
+                onDayOffsetChange = viewModel::setDayOffset,
+                onEpisodeWatchedChange = viewModel::setEpisodeWatched
             )
         }
     }
@@ -117,10 +121,11 @@ fun ShowDetailScreen(
 @Composable
 private fun ShowDetailBody(
     show: TrackedShow,
-    episodes: List<TmdbEpisode>,
+    episodes: List<PendingEpisode>,
     modifier: Modifier = Modifier,
     onWatchedChange: (Boolean) -> Unit,
-    onDayOffsetChange: (Int) -> Unit
+    onDayOffsetChange: (Int) -> Unit,
+    onEpisodeWatchedChange: (PendingEpisode, Boolean) -> Unit
 ) {
     val context = LocalContext.current
     var showDayOffsetDialog by remember { mutableStateOf(false) }
@@ -248,7 +253,12 @@ private fun ShowDetailBody(
                 initiallyExpanded = false,
                 trailingLabel = episodes.size.toString()
             ) {
-                episodes.forEach { episode -> EpisodeRow(episode) }
+                episodes.forEach { episode ->
+                    EpisodeStatusRow(
+                        episode = episode,
+                        onSetWatched = { watched -> onEpisodeWatchedChange(episode, watched) }
+                    )
+                }
             }
         }
 
@@ -324,14 +334,49 @@ private fun DayOffsetDialog(current: Int, onSave: (Int) -> Unit, onDismiss: () -
     )
 }
 
+/**
+ * One recorded episode with its state and the action that flips it: mark
+ * an outstanding one watched, or undo a watched or dismissed one. Mirrors
+ * iOS's EpisodeStatusRow.
+ */
 @Composable
-private fun EpisodeRow(episode: TmdbEpisode) {
-    Column(modifier = Modifier.padding(top = 10.dp)) {
-        Text(episode.label ?: "Episode", style = MaterialTheme.typography.bodyMedium)
-        Text(
-            episode.airDate?.ifEmpty { null } ?: "Unaired",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+private fun EpisodeStatusRow(episode: PendingEpisode, onSetWatched: (Boolean) -> Unit) {
+    val isOutstanding = !episode.watched && !episode.dismissed
+    val status = when {
+        episode.watched -> "Watched"
+        episode.dismissed -> "Dismissed"
+        else -> episode.airedSummary
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(episode.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                status,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (episode.watched) {
+                    MaterialTheme.colorScheme.secondary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+        }
+        if (isOutstanding) {
+            IconButton(onClick = { onSetWatched(true) }) {
+                Icon(
+                    Icons.Default.CheckCircle,
+                    contentDescription = "Mark watched",
+                    tint = MaterialTheme.colorScheme.secondary
+                )
+            }
+        } else {
+            TextButton(onClick = { onSetWatched(false) }) {
+                Text("Undo")
+            }
+        }
     }
 }

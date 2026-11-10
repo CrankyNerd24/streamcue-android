@@ -10,6 +10,10 @@ val StreamCueBackground = Color(0xFF121216)
 val StreamCueSurface = Color(0xFF1A1A20)
 val StreamCueAccent = Color(0xFFFF9F43)
 val StreamCueFree = Color(0xFF3DDC84)
+// "Aired, not actioned" — the Shows tab's Ready to watch section. Distinct
+// from StreamCueAccent ("airing tonight"), same as iOS's Theme.unwatched
+// vs. Theme.tonight. Colour means something — see CLAUDE.md.
+val StreamCueUnwatched = Color(0xFFE5A93A)
 val StreamCueTextPrimary = Color(0xFFF2EFE9)
 val StreamCueTextMuted = Color(0xFFA5A2AD)
 
