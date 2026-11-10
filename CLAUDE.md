@@ -49,6 +49,16 @@ Where this file and that one differ, this one wins for Android.
   `requestReview`. Reuse Nabbit for Android's exact cadence as the Android
   precedent (not iOS's own numbers): 3rd qualifying occurrence, then every
   30th, at least 120 days apart.
+- Android has no API for an app-icon badge detached from a real
+  notification, unlike iOS's `UNUserNotificationCenter.setBadgeCount` — a
+  badge count here has to ride an actual low-importance notification (see
+  `notifications/BadgeNotifier.kt`). Per-show air-date alerts use
+  WorkManager one-time requests rather than `AlarmManager`'s exact alarms:
+  `SCHEDULE_EXACT_ALARM` is reserved for apps whose core purpose is
+  alarms/calendaring, and Play is strict about granting it elsewhere.
+  `POST_NOTIFICATIONS` is requested once at launch (`MainActivity`,
+  Android 13+ only) — both notifiers silently no-op without it, same as
+  iOS "without permission, silently ignores the badge."
 
 ## Layout (`app/src/main/java/com/streamcueapp/streamcue`)
 
@@ -231,7 +241,29 @@ Where this file and that one differ, this one wins for Android.
   tracked show and movie once a day via `data/Refresh.kt`, one `runCatching`
   per title so a single network failure doesn't skip the rest of the batch
   — then runs `EpisodeSync.sync` on each refreshed show and
-  `EpisodeSync.prune` once at the end.
+  `EpisodeSync.prune` once at the end. `work/EpisodeAlertWorker.kt` is the
+  one-shot counterpart that fires a single show's air-date alert — see
+  `notifications/` below; both are the default WorkManager initializer's
+  job to discover, no `Configuration.Provider` needed.
+- `notifications/`: the app's notification layer, ported conceptually from
+  iOS's `Notifications.swift` (badge + scheduled alerts) but built on
+  Android's own primitives throughout — see the Tech section above for
+  why. `NotificationChannels.kt` (two channels: low-importance
+  `ready_to_watch`, default-importance `episode_alerts`, created once in
+  `StreamCueApp.onCreate`). `BadgeNotifier.kt` (the app-icon-badge analog —
+  `update(context, outstandingCount)`, posts/updates/cancels one
+  notification). `EpisodeAlertNotifier.kt` (`post(context, show)` — one
+  visible "airs today" alert, fired by `EpisodeAlertWorker`).
+  `NotificationScheduler.kt` (`reschedule(context, shows)` — cancels every
+  pending `episode_alert`-tagged work request and re-enqueues one per show
+  with a future `effectiveAirDateEpochDay`, fixed at 6pm local; "clear and
+  rebuild" rather than diffed, same as iOS). `NotificationPermission.kt`
+  (`hasNotificationPermission` — true outright below API 33). Both
+  `BadgeNotifier.update` and `NotificationScheduler.reschedule` are driven
+  reactively from two long-lived `StreamCueApp`-scoped coroutines watching
+  `pendingEpisodeDao().observePending()` and `trackedShowDao().observeAll()`
+  — nothing elsewhere in the app calls them directly, so there's no call
+  site to remember to add when something new changes either table.
 - `billing/`: not yet populated — Play Billing (Premium unlock) lands here
   alongside the screen that needs it.
 
@@ -253,13 +285,18 @@ history with Watched/Undo), a Ready to watch section on the Shows tab fed
 by the ported EpisodeSync/PendingEpisode system, a Services tab that picks
 your streaming services and shows per-service suggestion strips, a
 Discover tab covering For you / Trending / Popular for both Shows and
-Movies, and a nightly WorkManager refresh (plus pull-to-refresh on the
+Movies, a nightly WorkManager refresh (plus pull-to-refresh on the
 Shows tab) that keeps tracked titles' schedule/availability data and
-recorded episodes current. Still ahead: Reminders integration, household
-sharing (both need infrastructure — local notifications/a backend — not
-built yet), a free-tier cap on Services selections, OMDb ratings (TMDB
-score only for now), cast, a custom Watch-on override, air-date
-notifications, deep-linking Watch now into an installed streaming app
+recorded episodes current, and notification parity with iOS's app-icon
+badge and per-show air-date alerts (see `notifications/` above — built on
+Android's own primitives, not a literal port). Still ahead: Reminders
+integration (a real "add to the system Reminders/Calendar app" action, not
+just a notification), household
+sharing (needs a backend — not built yet), a free-tier cap on Services
+selections, OMDb ratings (TMDB
+score only for now), cast, a custom Watch-on override, a settings screen
+for the notification hour/private-mode toggle, deep-linking Watch now into
+an installed streaming app
 (always opens the JustWatch link in a browser for now), Play Billing for
 the Premium one-time unlock, and Play In-App Review.
 

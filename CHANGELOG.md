@@ -128,3 +128,29 @@ All notable changes to this project are documented here. Format follows
   - Still trimmed vs. iOS: no Reminders integration, no household sharing,
     no review-prompt tie-in — those ride infrastructure (notifications,
     a backend, StoreKit-equivalent gating) not ported yet
+
+- Add notification parity with iOS's app-icon badge and per-show air-date
+  alerts:
+  - A "Ready to watch" notification (low-importance, no sound) shows the
+    current outstanding-episode count, updated in place or cancelled as
+    that count changes — the closest Android analog to iOS's
+    `setBadgeCount`, since Android has no badge API detached from a real
+    notification. Whether it actually renders as a number on the home
+    screen icon depends on the launcher (Samsung does, stock Pixel
+    doesn't), same as iOS leaving the badge's exact look to the OS
+  - A visible alert fires the day a tracked show airs ("Show Name" /
+    "S03E07 airs today · Free on Service"), one per show, scheduled via
+    WorkManager rather than exact alarms — Android reserves
+    `SCHEDULE_EXACT_ALARM` for apps whose core purpose is alarms, so this
+    trades iOS's to-the-minute `UNCalendarNotificationTrigger` precision
+    for a battery-friendly inexact one-shot; delivery can lag under Doze
+  - Both are driven reactively from `StreamCueApp` (watching the tracked-
+    shows and pending-episodes tables), not threaded through every call
+    site that changes them, and rebuilt from scratch on every change —
+    same "clear and reschedule" strategy as iOS's `Notifications.reschedule`
+  - Requests `POST_NOTIFICATIONS` at launch on Android 13+; both notifiers
+    silently no-op without it, matching iOS's "no permission, no badge"
+  - Not ported: iOS's "private mode" (one anonymous daily alert instead of
+    one per show) and its notification-hour setting — fixed at iOS's own
+    default hour (6pm) for now, no settings screen exists yet to expose
+    either

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar notification icon: a plain TV-screen silhouette. Android
+     requires small icons to be a solid white shape on transparent — any
+     colour here is stripped and replaced by the system's own tint. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4,5 L20,5 L20,15 L4,15 Z M9,19 L15,19 L15,20 L9,20 Z" />
+</vector>
